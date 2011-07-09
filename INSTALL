@@ -1,0 +1,82 @@
+profillic relies on a number of other libraries.  All are open source
+and are easy to install.
+
+Required external libraries:
+---
+BOOST (tested with version 1.46.1):
+http://sourceforge.net/projects/boost/files/boost/1.46.1/
+
+Seqan version 1.2 (Note that the most recent version is 1.3 but we
+have not yet updated our code to be compatible with the new version,
+so you'll have to get version 1.2):
+http://www.seqan.de/uploads/media/Seqan_Release_1.2.zip
+
+HMMoC-BFloat-Algebra:
+http://pedlefsen.github.com/HMMoC-BFloat-Algebra/
+
+Required galosh libraries:
+---
+prolific:  http://galosh.github.com/prolific
+
+=========
+Installing BOOST (if you don't already have it!  Check first eg "locate boost")
+
+On my system, the boost libraries are in /usr/local/lib, and boost includes are in /usr/local/include.  I got them there like so:
+# Retrieve boost from http://sourceforge.net/projects/boost/files/boost/1.46.1/
+# Unpack it.  From one dir above it:
+cd boost_1_46_1
+./bootstrap.sh 
+sudo bjam install
+cd ..
+
+# If you don't have write access to /usr/local/bin and /usr/local/include, you should be able to install BOOST in your home directory instead (see the Boost Getting Started docs at eg http://www.boost.org/doc/libs/1_46_1/more/getting_started/ .  Below where it says to link to /usr/local/lib and /usr/local/include, instead link to your local install dirs.
+
+### NOTE: If you encounter problems later with bjam or with BOOST, it may be because there are multiple BOOST installs on your system.  You may need to first remove the /usr/local/lib/libboost* and /usr/local/include/boost files/dirs, then do the "sudo bjam install" again.  If that fails, consider a local install of BOOST as described above.
+
+# Now go into the profillic directory.
+cd profillic
+ln -s /usr/local/include boost-include
+ln -s /usr/local/lib boost-lib
+cd ..
+
+=========
+Installing Seqan version 1.2 (Note that the most recent version is 1.3 but we
+have not yet updated our code to be compatible with the new version,
+so you'll have to get version 1.2).
+
+## Get Seqan if you don't already have it (eg from http://www.seqan.de/uploads/media/Seqan_Release_1.2.zip -- note that it explodes where you unzip it, so first create a dir for it eg `mkdir seqan_release_1.2; cd seqan_release_1.2; unzip ~/Downloads/Seqan_Release_1.2.zip`)
+
+# Go into seqan's demos dir
+cd seqan_release_1.2/demos
+make all
+cd ../..
+
+# Make sure that seqan link in the profillic dir points to the right seqan dir.
+cd profillic
+ln -s ../seqan_release_1.2 seqan
+
+=========
+Installing the prolific header-only library.
+
+Retrieve prolific from http://galosh.github.com/prolific/, and unpack it.
+# Create the link to it in the profillic dir:
+# (note that the hex number "bb99906" might be different for you)
+cd profillic
+ln -s ../galosh-prolific-bb99906 prolific
+cd ..
+
+=========
+Installing profillic (finally!).
+
+cd profillic
+
+# First must make sure you can compile it in the fast-to-compile, slow-to-run "debug" variant, before trying to compile the slow-to-compile "release" variant.
+bjam --clean
+bjam debug
+
+# If that works (fingers crossed!), do
+bjam install release
+# The above will (slowly) compile the executables and copy them to the dist/ subdir.
+
+# You might be interested to check out the bjam (Boost.Build) documentation: http://www.boost.org/boost-build2/doc/html/index.html
+
