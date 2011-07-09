@@ -16,7 +16,9 @@ http://pedlefsen.github.com/HMMoC-BFloat-Algebra/
 
 Required galosh libraries:
 ---
-prolific:  http://galosh.github.com/prolific
+prolific (NOT the same thing as this library, which is "profillic"):  http://galosh.github.com/prolific
+
+FIRST, retrieve and unpack this library (if you have not already done so), and rename the dir to "profillic".  We will assume in the below instructions that all other required libraries will be installed in the parent directory of profillic, though you may adjust them to suit you if that is not the case.
 
 =========
 Installing BOOST (if you don't already have it!  Check first eg "locate boost")
@@ -56,6 +58,16 @@ cd profillic
 ln -s ../seqan_release_1.2 seqan
 
 =========
+Installing HMMoC-BFloat-Algebra.
+
+Retrieve HMMoC-BFloat-Algebra from http://pedlefsen.github.com/HMMoC-BFloat-Algebra/, and unpack it.
+# Create the link to it in the profillic dir:
+# (note that the hex number "582a53e" might be different for you)
+cd profillic
+ln -s ../pedlefsen-HMMoC-BFloat-Algebra-582a53e HMMoC-BFloat-Algebra
+cd ..
+
+=========
 Installing the prolific header-only library.
 
 Retrieve prolific from http://galosh.github.com/prolific/, and unpack it.
@@ -66,7 +78,7 @@ ln -s ../galosh-prolific-bb99906 prolific
 cd ..
 
 =========
-Installing profillic (finally!).
+FINALLY, installing profillic.
 
 cd profillic
 
