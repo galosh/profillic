@@ -84,11 +84,11 @@ cd profillic
 
 # First must make sure you can compile it in the fast-to-compile, slow-to-run "debug" variant, before trying to compile the slow-to-compile "release" variant.
 bjam --clean
-bjam debug
+bjam debug profillic_AA_CQA
 
 # If that works (fingers crossed!), do
 bjam install release
-# The above will (slowly) compile the executables and copy them to the dist/ subdir.
+# The above will (slowly) compile the executables, and will copy them to the dist/ subdir.
 
 # You might be interested to check out the bjam (Boost.Build) documentation: http://www.boost.org/boost-build2/doc/html/index.html
 

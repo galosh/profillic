@@ -85,6 +85,7 @@ public:
   train (
     string const & fasta_filename,
     unsigned int const & initial_profile_length_arg, // 0 means use median length, 1 means use max length
+    string const * const profile_output_filename_ptr,
     double const & lengthadjust_insertion_threshold, // 0 means don't use lengthadjust.
     double const & lengthadjust_deletion_threshold,
     double const & lengthadjust_insertion_threshold_increment,
@@ -250,6 +251,7 @@ public:
       train(
         fasta,
         profile,
+        profile_output_filename_ptr,
         lengthadjust_insertion_threshold, // 0 means don't use lengthadjust.
         lengthadjust_deletion_threshold,
         lengthadjust_insertion_threshold_increment,
@@ -262,12 +264,13 @@ public:
         even_starting_profile_multiple,
         train_globals_first
       );
-  } // train( string const &, int const &, double const &, double const &, double const &, usigned long const &, double const &, bool const &, uint32_t const &, double const &, bool const &, double const &, bool const & )
+  } // train( string const &, string const * const, int const &, double const &, double const &, double const &, usigned long const &, double const &, bool const &, uint32_t const &, double const &, bool const &, double const &, bool const & )
 
   ScoreType
   train (
     string const & fasta_filename,
     string const & profile_filename,
+    string const * const profile_output_filename_ptr,
     double const & lengthadjust_insertion_threshold, // 0 means don't use lengthadjust.
     double const & lengthadjust_deletion_threshold,
     double const & lengthadjust_insertion_threshold_increment,
@@ -301,6 +304,7 @@ public:
       train(
         fasta,
         profile,
+        profile_output_filename_ptr,
         lengthadjust_insertion_threshold, // 0 means don't use lengthadjust.
         lengthadjust_deletion_threshold,
         lengthadjust_insertion_threshold_increment,
@@ -319,6 +323,7 @@ public:
   train (
     Fasta<SequenceResidueType> const & fasta,
     ProfileTreeRoot<ResidueType, ProbabilityType> & profile,
+    string const * const profile_output_filename_ptr,
     double const & lengthadjust_insertion_threshold, // 0 means don't use lengthadjust.
     double const & lengthadjust_deletion_threshold,
     double const & lengthadjust_insertion_threshold_increment,
@@ -384,8 +389,7 @@ public:
         
     // TODO: REMOVE!  Testing..  (This is a good setting for the small numbers of observed sequences in eg the STEP trial when training from the starting profile (pretrained from eg all lanl seqs).  Use the known globals -- this avoids converging to silly all-indel profiles, and also acknowledges that the small data set shouldn't overwhelm what we already know about gaps (but TODO: allow using starting profile as a prior, with adjustable prior strength).  Disallowing priors here is key to see the effects of the data, but of course weakening the prior would also be a possibility, and disabling it can encourage local optima.  Again, starting with the 'known' profile seems key.
     //training_parameters_template.trainProfileGlobals = false; // TODO: REMOVE.
-    //training_parameters_template.usePriors = false; //true; // TODO: PUT BACK TRUE
-    training_parameters_template.usePriors = false;//true;
+    training_parameters_template.usePriors = true;
 
     // TODO: Try with the lengthadjust: maxBaumWelchInverseScalar > 0
     training_parameters_template.minIterations = 1; // But see below...
@@ -565,7 +569,7 @@ public:
     // TODO: REMOVE
     //cout << "just before training, trainer parameters are " << trainer.m_parameters << endl;
   
-    if( true ) {
+    if( profile_output_filename_ptr == NULL ) { // TODO: ? For now we assume they want profiles in the output stream.
       cout << "The profile (before) is:" << endl;
       cout << *( trainer.m_profile ) << endl;
 
@@ -574,13 +578,17 @@ public:
     cout << "Training." << endl;
     score = trainer.train();
 
-    cout << "Now (after training), the score is " << score << ", and the profile (length " << ( trainer.m_profile )->length() << ") is:" << endl;
-    cout << *trainer.m_profile << endl;
-    cout << "Its length is " << trainer.m_profile->length() << endl;
+    if( profile_output_filename_ptr == NULL ) { // TODO: ? For now we assume they want profiles in the output stream.
+      cout << "Now (after training), the score is " << score;
+      cout << ", and the profile (length " << ( trainer.m_profile )->length() << ") is:" << endl;
+      cout << *trainer.m_profile << endl;
+      cout << "That score, again, is " << score << "." << endl;
+    }
     cout << "It took " << trainer.m_iteration << " iterations." << endl;
-
-    cout << "That score, again, was " << score << endl;
-  
+    if( trainer.m_parameters.proposeProfileLengthChanges ) {
+      cout << "The profile's initial length was " << initial_profile_length << ", and its trained length is " << trainer.m_profile->length() << "." << endl;
+    }
+    
     if( calculate_viterbi_score || calculate_multiple_alignment ) {
       // Free memory first
       trainer.reinitialize();
@@ -620,6 +628,22 @@ public:
         ma.toPileupStream( cout, &fasta.m_descriptions );
       } // End if calculate_multiple_alignment
     } // End if calculate_viterbi_score || calculate_multiple_alignment
+
+    if( profile_output_filename_ptr != NULL ) {
+      std::ofstream fs ( profile_output_filename_ptr->c_str() );
+
+      if( !fs.is_open() ) {
+        // TODO: ?
+        cerr << "The profile output file '" << *profile_output_filename_ptr << "' could not be opened." << endl;
+      } else {
+        fs << *( trainer.m_profile );
+        fs.close();
+        cout << "Wrote the profile to file \"" << *profile_output_filename_ptr << "\"." << endl;
+      }
+
+    } // End if profile_output_filename_ptr != NULL
+
+    cout << "Enjoy." << endl;
     
     return score;
   } // train( string const &, Profile &, double const &, double const &, double const &, bool const &, uint32_t const &, double const &, double const &, bool const & )
