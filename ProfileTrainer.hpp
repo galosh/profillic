@@ -2897,7 +2897,8 @@ template <class ProfileType,
       //bool increment_pre_align_insertion_threshold_with_nonconsecutive_uses = true;
       //bool increment_post_align_insertion_threshold_with_nonconsecutive_uses = true;
 
-      static const bool count_seqs_exceeding_alignment_profile_thresholds = false;
+      // NOTE: If this is false, occupancy thresholding is turned off!
+      static const bool count_seqs_exceeding_alignment_profile_thresholds = ( m_trainingParameters.proposeInsertingOccupancyThreshold > 0 );
 
       const double fraction_seqs_exceeding_insertion_threshold_insert_threshold = m_trainingParameters.proposeInsertingOccupancyThreshold;
       const double fraction_seqs_exceeding_deletion_threshold_delete_threshold = ( 1.0 - fraction_seqs_exceeding_insertion_threshold_insert_threshold );
@@ -5001,6 +5002,8 @@ template <class ProfileType,
                         if( cout_indel_fractions ) {
                           cout << "\t Num seqs exceeding last pos insertion threshold: " << num_seqs_exceeding_last_pos_insertion_threshold << endl;
                           cout << "\t\t fraction is " << ( ( double )num_seqs_exceeding_last_pos_insertion_threshold / ( double )m_sequence_count ) << endl;
+                            // TODO: REMOVE
+                            cout << "\t\t\tthreshold is " << fraction_seqs_exceeding_insertion_threshold_insert_threshold << endl;
                         }
                         // TODO: REMOVE.
                         if( ( ( double )num_seqs_exceeding_last_pos_insertion_threshold / ( double )m_sequence_count ) > largest_insertion_fraction ) {
@@ -5012,6 +5015,10 @@ template <class ProfileType,
                             ( ( ( double )num_seqs_exceeding_last_pos_insertion_threshold / ( double )m_sequence_count ) > ( double )fraction_seqs_exceeding_insertion_threshold_insert_threshold )
                            ) {
                           last_pos_insertion_fraction_exceeds_threshold = true;
+                          if( cout_profile_length_changes ) {
+                            cout << "[ " << m_row_i << " ]\t\tFinal profile position " << m_row_i << " exceeds insertion threshold: " << ( ( double )num_seqs_exceeding_last_pos_insertion_threshold / ( double )m_sequence_count ) << " > " << ( double )fraction_seqs_exceeding_insertion_threshold_insert_threshold << endl;
+                          }
+
                           if(
                              use_sensitive_threshold_increments &&
                              (
@@ -5027,6 +5034,8 @@ template <class ProfileType,
                         if( cout_indel_fractions ) {
                           cout << "\t Num seqs exceeding insertion threshold: " << num_seqs_exceeding_insertion_threshold << endl;
                           cout << "\t\t fraction is " << ( ( double )num_seqs_exceeding_insertion_threshold / ( double )m_sequence_count ) << endl;
+                            // TODO: REMOVE
+                            cout << "\t\t\tthreshold is " << fraction_seqs_exceeding_insertion_threshold_insert_threshold << endl;
                         }
                         // TODO: REMOVE.
                         if( ( ( double )num_seqs_exceeding_insertion_threshold / ( double )m_sequence_count ) > largest_insertion_fraction ) {
@@ -5038,6 +5047,9 @@ template <class ProfileType,
                             ( ( ( double )num_seqs_exceeding_insertion_threshold / ( double )m_sequence_count ) > ( double )fraction_seqs_exceeding_insertion_threshold_insert_threshold )
                            ) {
                           insertion_fraction_exceeds_threshold = true;
+                          if( cout_profile_length_changes ) {
+                            cout << "[ " << m_row_i << " ]\t\tProfile position " << m_row_i << " exceeds insertion threshold: " << ( ( double )num_seqs_exceeding_insertion_threshold / ( double )m_sequence_count ) << " > " << ( double )fraction_seqs_exceeding_insertion_threshold_insert_threshold << endl;
+                          }
                           if(
                              use_sensitive_threshold_increments &&
                              (
@@ -5184,6 +5196,8 @@ template <class ProfileType,
                           if( cout_indel_fractions ) {
                             cout << "\t Num seqs exceeding (last pos) deletion threshold: " << num_seqs_exceeding_last_pos_deletion_threshold << endl;
                             cout << "\t\t fraction is " << ( ( double )num_seqs_exceeding_last_pos_deletion_threshold / m_sequence_count ) << endl;
+                            // TODO: REMOVE
+                            cout << "\t\t\tthreshold is " << fraction_seqs_exceeding_deletion_threshold_delete_threshold << endl;
                           }
                           // TODO: REMOVE.
                           if( ( ( double )num_seqs_exceeding_last_pos_deletion_threshold / ( double )m_sequence_count ) > largest_deletion_fraction ) {
@@ -5197,12 +5211,17 @@ template <class ProfileType,
                             // TODO: REMOVE
                             //cout << "DELETING LAST POS" << endl;
                             last_pos_deletion_fraction_exceeds_threshold = true;
+                            if( cout_profile_length_changes ) {
+                              cout << "[ " << m_row_i << " ]\t\tFinal profile position " << m_row_i << " exceeds deletion threshold: " << ( ( double )num_seqs_exceeding_last_pos_deletion_threshold / ( double )m_sequence_count ) << " > " << ( double )fraction_seqs_exceeding_deletion_threshold_delete_threshold << endl;
+                            }
                           } // End if last_pos_deletion_fraction > propose_deleting_threshold
                         } // End if ( m_row_i == ( last_row - 1 ) )
                       
                         if( cout_indel_fractions ) {
                           cout << "\t Num seqs exceeding deletion threshold: " << num_seqs_exceeding_deletion_threshold << endl;
                           cout << "\t\t fraction is " << ( ( double )num_seqs_exceeding_deletion_threshold / m_sequence_count ) << endl;
+                          // TODO: REMOVE
+                          cout << "\t\t\tthreshold is " << fraction_seqs_exceeding_deletion_threshold_delete_threshold << endl;
                         }
                         // TODO: REMOVE.
                         if( ( ( double )num_seqs_exceeding_deletion_threshold / ( double )m_sequence_count ) > largest_deletion_fraction ) {
@@ -5213,6 +5232,9 @@ template <class ProfileType,
                             ( ( ( double )num_seqs_exceeding_deletion_threshold / ( double )m_sequence_count ) > ( double )fraction_seqs_exceeding_deletion_threshold_delete_threshold )
                         ) {
                           deletion_fraction_exceeds_threshold = true;
+                          if( cout_profile_length_changes ) {
+                            cout << "[ " << m_row_i << " ]\t\tProfile position " << m_row_i << " exceeds deletion threshold: " << ( ( double )num_seqs_exceeding_deletion_threshold / ( double )m_sequence_count ) << " > " << ( double )fraction_seqs_exceeding_deletion_threshold_delete_threshold << endl;
+                          }
                         } // End if deletion_fraction > propose_deleting_threshold
                       } else { // if count_seqs_exceeding_alignment_profile_thresholds .. else ..
                         if( m_row_i == ( last_row - 1 ) ) {
