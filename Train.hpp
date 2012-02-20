@@ -72,7 +72,13 @@
 #endif // __HAVE_MUSCLE
 
 #include <boost/lexical_cast.hpp>
+#include <boost/program_options.hpp>
 
+/**
+ * \class Train
+ * \brief Public / commandline interface to ProfileTrainer.
+ *
+ */
 namespace galosh {
 template <typename ProbabilityType,
           typename ScoreType,
@@ -81,267 +87,231 @@ template <typename ProbabilityType,
           typename SequenceResidueType>
 class Train {
 public:
+  /**
+   * \fn train
+   * \brief read in some training sequences and other options; estimate parameters of a profile.
+   **/
   ScoreType
   train (
-    string const & fasta_filename,
-    unsigned int const & initial_profile_length_arg, // 0 means use median length, 1 means use max length
-    string const * const profile_output_filename_ptr,
-    double const & lengthadjust_insertion_threshold, // 0 means don't use lengthadjust.
-    double const & lengthadjust_deletion_threshold,
-    double const & lengthadjust_insertion_threshold_increment,
-    double const & lengthadjust_deletion_threshold_increment,
-    long const & random_seed_arg, // 0 means use the time.
-    double const & lengthadjust_occupancy_threshold,
-    bool const & lengthadjust_use_sensitive_thresholding,
-    uint32_t const & lengthadjust_increase_thresholds_for_length_changes_start_iteration,
-    double const & lengthadjust_increase_thresholds_for_length_changes_min_increment,
-    bool const & use_unconditional_bw,
-    double const & even_starting_profile_multiple, // If < 0, even() the positions of the starting profile; if > 0, starting profile's positions are averaged with this multiple of the even profile.
-    bool const & train_globals_first
-  )
+    boost::program_options::variables_map const & vm
+  ) const
   {
     typedef ProfileTreeRoot<ResidueType, ProbabilityType> ProfileType;
-  
-    uint32_t initial_profile_length = initial_profile_length_arg;
 
-    // NOTE: See below: we start with positions even, since the results are much better.
-    //Random random = Random();
-    //unsigned long seed = random_seed_arg;
-    //if( random_seed_arg == 0 ) {
-    //  seed = std::time( NULL );
-    //}
-    //cout << "NOTE: RANDOM SEED IS " << seed << endl;
-    //random.setSeed( seed );
-  
     DynamicProgramming<ResidueType, ProbabilityType, ScoreType, MatrixValueType> dp;
   
     Fasta<SequenceResidueType> fasta;
+    const std::string fasta_filename = vm[ "fasta" ].as<string>();
     fasta.fromFile( fasta_filename );
     uint32_t num_sequences_to_use = fasta.size();
+    if( vm.count( "nseq" ) ) {
+      num_sequences_to_use = vm[ "nseq" ].as<uint32_t>();
+    }
   
     //cout << "FASTA from file:" << endl;
     //cout << fasta << endl;
 
-    if( initial_profile_length == 1 ) {
-      // Guess the length.  Use the maximum length of the sequences.
-      initial_profile_length = 0;
-      uint32_t seq_length;
-      for( uint32_t seq_i = 0; seq_i < num_sequences_to_use; seq_i++ ) {
-        seq_length = fasta[ seq_i ].length();
-        if( seq_length > initial_profile_length ) {
-          initial_profile_length = seq_length;
+    ProfileType profile;
+    if( vm.count( "starting_profile" ) > 0 ) {
+      const std::string profile_filename = vm[ "starting_profile" ].as<string>();
+      profile.fromFile( profile_filename );
+      assert( profile.length() > 1 );
+    } else {
+      // initial profile length defaults to 1, meaning use the maximum length of the input sequences.
+      uint32_t initial_profile_length =
+        ( ( vm.count( "initial_profile_length" ) == 0 ) ? 1 : vm[ "initial_profile_length" ].as<uint32_t>() );
+
+      uint32_t random_seed_arg =
+        ( ( vm.count( "random_seed" ) == 0 ) ? 0 : vm[ "random_seed" ].as<uint32_t>() );
+
+      Random random = Random();
+      unsigned long seed = random_seed_arg;
+      if( random_seed_arg == 0 ) {
+        seed = std::time( NULL );
+      }
+      //cout << "NOTE: RANDOM SEED IS " << seed << endl;
+      random.setSeed( seed );
+  
+      if( initial_profile_length == 1 ) {
+        // Guess the length.  Use the maximum length of the sequences.
+        initial_profile_length = 0;
+        uint32_t seq_length;
+        for( uint32_t seq_i = 0; seq_i < num_sequences_to_use; seq_i++ ) {
+          seq_length = fasta[ seq_i ].length();
+          if( seq_length > initial_profile_length ) {
+            initial_profile_length = seq_length;
+          }
+        } // End foreach seq, find the one with the max length
+      } else if( initial_profile_length == 0 ) { // if initial_profile_length == 1 .. else 0 ..
+        // Guess the length.  Use the median length of the sequences.
+        vector<uint32_t> lengths( num_sequences_to_use );
+        for( uint32_t seq_i = 0; seq_i < num_sequences_to_use; seq_i++ ) {
+          lengths[ seq_i ] = fasta[ seq_i ].length();
         }
-      } // End foreach seq, find the one with the max length
-    } else if( initial_profile_length == 0 ) { // if initial_profile_length == 1 .. else 0 ..
-      // Guess the length.  Use the median length of the sequences.
-      vector<uint32_t> lengths( num_sequences_to_use );
-      for( uint32_t seq_i = 0; seq_i < num_sequences_to_use; seq_i++ ) {
-        lengths[ seq_i ] = fasta[ seq_i ].length();
+        // Sort them.
+        std::sort( lengths.begin(), lengths.end() );
+        if( ( num_sequences_to_use % 2 ) == 1 ) {
+          // Odd number, use the middle value.
+          initial_profile_length = lengths[ ( num_sequences_to_use - 1 ) / 2 ];
+        } else {
+          // Even number, use the average of the two middle values.
+          initial_profile_length = lengths[ ( num_sequences_to_use / 2 ) - 1 ];
+          initial_profile_length += lengths[ ( num_sequences_to_use / 2 ) ];
+          // Round it, rather than truncate it:
+          initial_profile_length =
+            uint32_t( ( ( float )initial_profile_length / 2.0f ) + .5f );
+        }
+      } // End if initial_profile_length == 1 .. else 0 ..
+      if( initial_profile_length == 1 ) { // We can't handle length 1 profiles.
+        initial_profile_length = 2;
       }
-      // Sort them.
-      std::sort( lengths.begin(), lengths.end() );
-      if( ( num_sequences_to_use % 2 ) == 1 ) {
-        // Odd number, use the middle value.
-        initial_profile_length = lengths[ ( num_sequences_to_use - 1 ) / 2 ];
-      } else {
-        // Even number, use the average of the two middle values.
-        initial_profile_length = lengths[ ( num_sequences_to_use / 2 ) - 1 ];
-        initial_profile_length += lengths[ ( num_sequences_to_use / 2 ) ];
-        // Round it, rather than truncate it:
-        initial_profile_length =
-          uint32_t( ( ( float )initial_profile_length / 2.0f ) + .5f );
-      }
-    } // End if initial_profile_length == 1 .. else 0 ..
-    if( initial_profile_length == 1 ) { // We can't handle length 1 profiles.
-      initial_profile_length = 2;
-    }
-    assert( initial_profile_length > 1 );
+      assert( initial_profile_length > 1 );
 
-    // Set up the profile with some reasonable initial global values
-    ProfileType profile( initial_profile_length );
+      // Set up the profile with some reasonable initial global values
+      profile.reinitialize( initial_profile_length );
 
+      /// TODO: DEHACKIFY
 #ifndef DISALLOW_FLANKING_TRANSITIONS
-    profile[ galosh::Transition::fromPreAlign ][ galosh::TransitionFromPreAlign::toPreAlign ] =
-      .01;
-    profile[ galosh::Transition::fromPreAlign ][ galosh::TransitionFromPreAlign::toBegin ] =
-      1.0 -
-      profile[ galosh::Transition::fromPreAlign ][ galosh::TransitionFromPreAlign::toPreAlign ];
+      profile[ galosh::Transition::fromPreAlign ][ galosh::TransitionFromPreAlign::toPreAlign ] =
+        .01;
+      profile[ galosh::Transition::fromPreAlign ][ galosh::TransitionFromPreAlign::toBegin ] =
+        1.0 -
+        profile[ galosh::Transition::fromPreAlign ][ galosh::TransitionFromPreAlign::toPreAlign ];
 #endif // !DISALLOW_FLANKING_TRANSITIONS
 #ifdef USE_DEL_IN_DEL_OUT
-    profile[ galosh::Transition::fromBegin ][ galosh::TransitionFromBegin::toDeletion ] =
-      .01;
-    profile[ galosh::Transition::fromBegin ][ galosh::TransitionFromBegin::toDeletionIn ] =
-      .9;
-    profile[ galosh::Transition::fromBegin ][ galosh::TransitionFromBegin::toMatch ] =
-      1.0 -
-      (
-        profile[ galosh::Transition::fromBegin ][ galosh::TransitionFromBegin::toDeletion ] +
-        profile[ galosh::Transition::fromBegin ][ galosh::TransitionFromBegin::toDeletionIn ]
-      );
-    profile[ galosh::Transition::fromDeletionIn ][ galosh::TransitionFromDeletionIn::toDeletionIn ] =
-      .9999;//.5;
-    profile[ galosh::Transition::fromDeletionIn ][ galosh::TransitionFromDeletionIn::toMatch ] =
-      1.0 -
-      profile[ galosh::Transition::fromDeletionIn ][ galosh::TransitionFromDeletionIn::toDeletionIn ];
+      profile[ galosh::Transition::fromBegin ][ galosh::TransitionFromBegin::toDeletion ] =
+        .01;
+      profile[ galosh::Transition::fromBegin ][ galosh::TransitionFromBegin::toDeletionIn ] =
+        .9;
+      profile[ galosh::Transition::fromBegin ][ galosh::TransitionFromBegin::toMatch ] =
+        1.0 -
+        (
+          profile[ galosh::Transition::fromBegin ][ galosh::TransitionFromBegin::toDeletion ] +
+          profile[ galosh::Transition::fromBegin ][ galosh::TransitionFromBegin::toDeletionIn ]
+        );
+      profile[ galosh::Transition::fromDeletionIn ][ galosh::TransitionFromDeletionIn::toDeletionIn ] =
+        .9999;//.5;
+      profile[ galosh::Transition::fromDeletionIn ][ galosh::TransitionFromDeletionIn::toMatch ] =
+        1.0 -
+        profile[ galosh::Transition::fromDeletionIn ][ galosh::TransitionFromDeletionIn::toDeletionIn ];
 #else
-    profile[ galosh::Transition::fromBegin ][ galosh::TransitionFromBegin::toDeletion ] =
-      .01;
-    profile[ galosh::Transition::fromBegin ][ galosh::TransitionFromBegin::toMatch ] =
-      1.0 -
-      profile[ galosh::Transition::fromBegin ][ galosh::TransitionFromBegin::toDeletion ];
+      profile[ galosh::Transition::fromBegin ][ galosh::TransitionFromBegin::toDeletion ] =
+        .01;
+      profile[ galosh::Transition::fromBegin ][ galosh::TransitionFromBegin::toMatch ] =
+        1.0 -
+        profile[ galosh::Transition::fromBegin ][ galosh::TransitionFromBegin::toDeletion ];
 #endif // USE_DEL_IN_DEL_OUT .. else ..
     
 #ifdef USE_DEL_IN_DEL_OUT
-    profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toInsertion ] =
-      .0025;
-    profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toDeletion ] =
-      .0025;
-    profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toDeletionOut ] =
-      .9; // .5;
-    profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toMatch ] =
-      1.0 -
-      (
-        profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toInsertion ] +
-        profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toDeletion ] +
-        profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toDeletionOut ]
-      );
-    profile[ galosh::Transition::fromDeletionOut ][ galosh::TransitionFromDeletionOut::toDeletionOut ] =
-      .9999;//.5;
-    profile[ galosh::Transition::fromDeletionOut ][ galosh::TransitionFromDeletionOut::toEnd ] =
-      1.0 -
-      profile[ galosh::Transition::fromDeletionOut ][ galosh::TransitionFromDeletionOut::toDeletionOut ];
-#else
-    profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toInsertion ] =
-      .01;
-    profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toDeletion ] =
-      .01;
-    profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toMatch ] =
-      1.0 -
-      (
-        profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toInsertion ] +
-        profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toDeletion ]
-      );
-#endif // USE_DEL_IN_DEL_OUT .. else ..
-    profile[ 0 ][ galosh::Transition::fromInsertion ][ galosh::TransitionFromInsertion::toInsertion ] =
-      .5;
-    profile[ 0 ][ galosh::Transition::fromInsertion ][ galosh::TransitionFromInsertion::toMatch ] =
-      1.0 -
-      profile[ 0 ][ galosh::Transition::fromInsertion ][ galosh::TransitionFromInsertion::toInsertion ];
-    profile[ 0 ][ galosh::Transition::fromDeletion ][ galosh::TransitionFromDeletion::toDeletion ] =
-      .5;
-    profile[ 0 ][ galosh::Transition::fromDeletion ][ galosh::TransitionFromDeletion::toMatch ] =
-      1.0 -
-      profile[ 0 ][ galosh::Transition::fromDeletion ][ galosh::TransitionFromDeletion::toDeletion ];
+      profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toInsertion ] =
+        .0025;
+      profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toDeletion ] =
+        .0025;
+      profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toDeletionOut ] =
+        .9; // .5;
+      profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toMatch ] =
+        1.0 -
+        (
+          profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toInsertion ] +
+          profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toDeletion ] +
+          profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toDeletionOut ]
+        );
+      profile[ galosh::Transition::fromDeletionOut ][ galosh::TransitionFromDeletionOut::toDeletionOut ] =
+        .9999;//.5;
+      profile[ galosh::Transition::fromDeletionOut ][ galosh::TransitionFromDeletionOut::toEnd ] =
+        1.0 -
+        profile[ galosh::Transition::fromDeletionOut ][ galosh::TransitionFromDeletionOut::toDeletionOut ];
+  #else
+      profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toInsertion ] =
+        .01;
+      profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toDeletion ] =
+        .01;
+      profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toMatch ] =
+        1.0 -
+        (
+          profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toInsertion ] +
+          profile[ 0 ][ galosh::Transition::fromMatch ][ galosh::TransitionFromMatch::toDeletion ]
+        );
+  #endif // USE_DEL_IN_DEL_OUT .. else ..
+      profile[ 0 ][ galosh::Transition::fromInsertion ][ galosh::TransitionFromInsertion::toInsertion ] =
+        .5;
+      profile[ 0 ][ galosh::Transition::fromInsertion ][ galosh::TransitionFromInsertion::toMatch ] =
+        1.0 -
+        profile[ 0 ][ galosh::Transition::fromInsertion ][ galosh::TransitionFromInsertion::toInsertion ];
+      profile[ 0 ][ galosh::Transition::fromDeletion ][ galosh::TransitionFromDeletion::toDeletion ] =
+        .5;
+      profile[ 0 ][ galosh::Transition::fromDeletion ][ galosh::TransitionFromDeletion::toMatch ] =
+        1.0 -
+        profile[ 0 ][ galosh::Transition::fromDeletion ][ galosh::TransitionFromDeletion::toDeletion ];
 #ifndef DISALLOW_FLANKING_TRANSITIONS
-    profile[ galosh::Transition::fromPostAlign ][ galosh::TransitionFromPostAlign::toPostAlign ] =
-      .01;
-    profile[ galosh::Transition::fromPostAlign ][ galosh::TransitionFromPostAlign::toTerminal ] =
-      1.0 -
-      profile[ galosh::Transition::fromPostAlign ][ galosh::TransitionFromPostAlign::toPostAlign ];
+      profile[ galosh::Transition::fromPostAlign ][ galosh::TransitionFromPostAlign::toPostAlign ] =
+        .01;
+      profile[ galosh::Transition::fromPostAlign ][ galosh::TransitionFromPostAlign::toTerminal ] =
+        1.0 -
+        profile[ galosh::Transition::fromPostAlign ][ galosh::TransitionFromPostAlign::toPostAlign ];
 #endif // !DISALLOW_FLANKING_TRANSITIONS
   
-    // Start from uniform profile positions
-    // UPDATE: Don't!  starting from even helps a lot.
-    //profile.uniformPositions( random );
+      // Start from uniform profile positions
+      // But note! Below it may well be even()d anyway.  See even_starting_profile_multiple..
+      profile.uniformPositions( random );
+    } // End if the user specified a starting_profile filename, else ..
 
     // Ensure values aren't too tiny.
     profile.normalize( 1E-5 );
 
     return
       train(
+        vm,
         fasta,
-        profile,
-        profile_output_filename_ptr,
-        lengthadjust_insertion_threshold, // 0 means don't use lengthadjust.
-        lengthadjust_deletion_threshold,
-        lengthadjust_insertion_threshold_increment,
-        lengthadjust_deletion_threshold_increment,
-        lengthadjust_occupancy_threshold,
-        lengthadjust_use_sensitive_thresholding,
-        lengthadjust_increase_thresholds_for_length_changes_start_iteration,
-        lengthadjust_increase_thresholds_for_length_changes_min_increment,
-        use_unconditional_bw,
-        even_starting_profile_multiple,
-        train_globals_first
+        profile
       );
-  } // train( string const &, string const * const, int const &, double const &, double const &, double const &, usigned long const &, double const &, bool const &, uint32_t const &, double const &, bool const &, double const &, bool const & )
+  } // train( boost::program_options::variables_map const & )
 
+  /**
+   * \fn train
+   * \brief Given some training sequences and a starting profile, parse the other options, then estimate the parameters of the profile.
+   **/
   ScoreType
   train (
-    string const & fasta_filename,
-    string const & profile_filename,
-    string const * const profile_output_filename_ptr,
-    double const & lengthadjust_insertion_threshold, // 0 means don't use lengthadjust.
-    double const & lengthadjust_deletion_threshold,
-    double const & lengthadjust_insertion_threshold_increment,
-    double const & lengthadjust_deletion_threshold_increment,
-    double const & lengthadjust_occupancy_threshold,
-    bool const & lengthadjust_use_sensitive_thresholding,
-    uint32_t const & lengthadjust_increase_thresholds_for_length_changes_start_iteration,
-    double const & lengthadjust_increase_thresholds_for_length_changes_min_increment,
-    bool const & use_unconditional_bw,
-    double const & even_starting_profile_multiple, // If < 0, even() the positions of the starting profile; if > 0, starting profile's positions are averaged with this multiple of the even profile.
-    bool const & train_globals_first
-  )
-  {
-    typedef ProfileTreeRoot<ResidueType, ProbabilityType> ProfileType;
-
-    ProfileType profile;
-    profile.fromFile( profile_filename );
-    assert( profile.length() > 1 );
-
-    // Ensure values aren't too tiny.
-    profile.normalize( 1E-5 );
-
-    Fasta<SequenceResidueType> fasta;
-    fasta.fromFile( fasta_filename );
-    uint32_t num_sequences_to_use = fasta.size();
-  
-    //cout << "FASTA from file:" << endl;
-    //cout << fasta << endl;
-
-    return
-      train(
-        fasta,
-        profile,
-        profile_output_filename_ptr,
-        lengthadjust_insertion_threshold, // 0 means don't use lengthadjust.
-        lengthadjust_deletion_threshold,
-        lengthadjust_insertion_threshold_increment,
-        lengthadjust_deletion_threshold_increment,
-        lengthadjust_occupancy_threshold,
-        lengthadjust_use_sensitive_thresholding,
-        lengthadjust_increase_thresholds_for_length_changes_start_iteration,
-        lengthadjust_increase_thresholds_for_length_changes_min_increment,
-        use_unconditional_bw,
-        even_starting_profile_multiple,
-        train_globals_first
-      );
-  } // train( string const &, string const &, double const &, double const &, double const &, bool const &, uint32_t const &, double const &, double const &, bool const &, double const &, bool const & )
-
-  ScoreType
-  train (
+    boost::program_options::variables_map const & vm,
     Fasta<SequenceResidueType> const & fasta,
-    ProfileTreeRoot<ResidueType, ProbabilityType> & profile,
-    string const * const profile_output_filename_ptr,
-    double const & lengthadjust_insertion_threshold, // 0 means don't use lengthadjust.
-    double const & lengthadjust_deletion_threshold,
-    double const & lengthadjust_insertion_threshold_increment,
-    double const & lengthadjust_deletion_threshold_increment,
-    double const & lengthadjust_occupancy_threshold,
-    bool const & lengthadjust_use_sensitive_thresholding,
-    uint32_t const & lengthadjust_increase_thresholds_for_length_changes_start_iteration,
-    double const & lengthadjust_increase_thresholds_for_length_changes_min_increment,
-    bool const & use_unconditional_bw,
-    double const & even_starting_profile_multiple, // If < 0, even() the positions of the starting profile; if > 0, starting profile's positions are averaged with this multiple of the even profile.
-    bool const & train_globals_first
-  )
+    ProfileTreeRoot<ResidueType, ProbabilityType> & profile
+  ) const
   {
     typedef ProfileTreeRoot<ResidueType, ProbabilityType> ProfileType;
     typedef ProfileTreeRoot<ResidueType, ProbabilityType> InternalNodeType;
-  
-    const bool use_lengthadjust = ( lengthadjust_insertion_threshold > 0 );
 
+    // TODO: Update/dehackify (this has remnants of the OLD WAY).
+    const string profile_output_filename = vm[ "output_profile" ].as<string>();
+    string const * const profile_output_filename_ptr = &profile_output_filename;
+
+    const bool use_unconditional_training = vm.count( "unconditional" ) > 0;
+
+    // If < 0, even() the positions of the starting profile; if > 0, starting profile's positions are averaged with this multiple of the even profile.  Note that it defaults to -1 unless reading from a starting profile file, ie to use even().  If reading from a starting profile, it defaults to 0 (do nothing).
+    const double even_starting_profile_multiple = ( ( vm.count( "even_starting_profile_multiple" ) == 0 ) ? ( vm.count( "starting_profile" ) ? 0 : -1 ) : vm[ "even_starting_profile_multiple" ].as<double>() );
+
+    const bool train_globals_first = vm.count( "globals_first" ) > 0;
+
+    const uint32_t max_iterations = ( vm.count( "max_iterations" ) ? vm[ "max_iterations" ].as<uint32_t>() : 1000 );
+
+    // 0 means don't use lengthadjust.
+    const bool use_lengthadjust = ( vm.count( "dms" ) > 0 );
+
+    // TODO: Dehackify magic #s (defaults)
+    const double lengthadjust_insertion_threshold = ( vm.count( "dms.insertion_threshold" ) ? vm[ "dms.insertion_threshold" ].as<double>() : .5 ); 
+    const double lengthadjust_deletion_threshold = ( vm.count( "dms.deletion_threshold" ) ? vm[ "dms.deletion_threshold" ].as<double>() : lengthadjust_insertion_threshold ); 
+    const double lengthadjust_insertion_threshold_increment = ( vm.count( "dms.insertion_threshold_increment" ) ? vm[ "dms.insertion_threshold_increment" ].as<double>() : 0.0005 ); 
+    const double lengthadjust_deletion_threshold_increment = ( vm.count( "dms.deletion.thrshold" ) ? vm[ "dms.deletion_threshold_increment" ].as<double>() : lengthadjust_insertion_threshold_increment ); 
+
+    const double lengthadjust_occupancy_threshold = ( vm.count( "dms.occupancy_threshold" ) ? vm[ "dms.occupancy_threshold" ].as<double>() : .5 );
+    // For now always use sensitive thresholding.
+    const bool lengthadjust_use_sensitive_thresholding = true;//( lengthadjust_occupancy_threshold > 0 );
+
+    const uint32_t lengthadjust_increase_thresholds_for_length_changes_start_iteration = ( vm.count( "dms.increase_thresholds_for_length_changes_start_iteration" ) ? vm[ "dms.increase_thresholds_for_length_changes_start_iteration" ].as<uint32_t>() : 500 );
+    const double lengthadjust_increase_thresholds_for_length_changes_min_increment = ( vm.count( "dms.increase_thresholds_for_length_changes_min_increment" ) ? vm[ "dms.increase_thresholds_for_length_changes_min_increment" ].as<double>() : 1E-4 );
+
+    // End processing arguments from the variable map (vm).
+  
     const uint32_t initial_profile_length = profile.length();
 
     const uint32_t train_iterations = 1;//5;
@@ -393,7 +363,7 @@ public:
 
     // TODO: Try with the lengthadjust: maxBaumWelchInverseScalar > 0
     training_parameters_template.minIterations = 1; // But see below...
-    training_parameters_template.maxIterations = 1000;
+    training_parameters_template.maxIterations = max_iterations;
     // Having maxPositionCycles_globals > 1 seems ok; takes about the same
     // number of iterations, converges to roughly the same place; takes
     // longer by virtue of having more pos cycles per iteration of course.
@@ -465,7 +435,7 @@ public:
 
     // Use Ubw?
     training_parameters_template.useUnconditionalBaumWelch =
-      use_unconditional_bw;
+      use_unconditional_training;
   
 #ifdef ALLOW_BOLTZMANN_GIBBS
     // NOTE about priors:  since globals are presently not updated using Baldi, you can still usePriors and they will affect the globals *but not the positions*.
@@ -646,7 +616,7 @@ public:
     cout << "Enjoy." << endl;
     
     return score;
-  } // train( string const &, Profile &, double const &, double const &, double const &, bool const &, uint32_t const &, double const &, double const &, bool const & )
+  } // train( boost::program_options::variables_map const &, Fasta const &, Profile & )
 
 }; // End class Train
 

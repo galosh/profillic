@@ -8,21 +8,21 @@ use-project /HMMoC-BFloat-Algebra : ./HMMoC-BFloat-Algebra ;
 
 exe profillic_AA_CBW
     : [ obj Train_obj : Train.cpp
-        : <include>./prolific <include>./boost-include <include>./seqan <define>__PROFUSE_USE_AMINOS ] boost_serialization boost_system boost_graph : ;
+        : <include>./prolific <include>./boost-include <include>./seqan <define>__PROFUSE_USE_AMINOS ] boost_serialization boost_system boost_graph boost_program_options : ;
 
 exe profillic_AA_CQA
     : [ obj Train_obj : Train.cpp
-        : <include>./prolific <include>./boost-include <include>./seqan <define>__PROFUSE_USE_AMINOS <define>ALLOW_BOLTZMANN_GIBBS ] boost_serialization boost_system boost_graph : ;
+        : <include>./prolific <include>./boost-include <include>./seqan <define>__PROFUSE_USE_AMINOS <define>ALLOW_BOLTZMANN_GIBBS ] boost_serialization boost_system boost_graph boost_program_options : ;
 
 alias profillic_AA : profillic_AA_CBW profillic_AA_CQA ;
 
 exe profillic_DNA_CBW
     : [ obj Train_obj : Train.cpp
-        : <include>./prolific <include>./boost-include <include>./seqan ] boost_serialization boost_system boost_graph : ;
+        : <include>./prolific <include>./boost-include <include>./seqan ] boost_serialization boost_system boost_graph boost_program_options : ;
 
 exe profillic_DNA_CQA
     : [ obj Train_obj : Train.cpp
-        : <include>./prolific <include>./boost-include <include>./seqan <define>ALLOW_BOLTZMANN_GIBBS ] boost_serialization boost_system boost_graph : ;
+        : <include>./prolific <include>./boost-include <include>./seqan <define>ALLOW_BOLTZMANN_GIBBS ] boost_serialization boost_system boost_graph boost_program_options : ;
 
 alias profillic_DNA : profillic_DNA_CBW profillic_DNA_CQA ;
 
@@ -40,5 +40,6 @@ lib boost_serialization : : <file>./boost-lib/libboost_serialization.a ;
 lib boost_filesystem : : <file>./boost-lib/libboost_filesystem.a ;
 lib boost_graph : : <file>./boost-lib/libboost_graph.a ;
 lib boost_system : : <file>./boost-lib/libboost_system.a ;
+lib boost_program_options : : <file>./boost-lib/libboost_program_options.a ;
 
 

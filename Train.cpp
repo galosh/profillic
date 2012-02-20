@@ -42,6 +42,7 @@ char **g_argv;
 #endif // __HAVE_MUSCLE
 
 using namespace galosh;
+namespace po = boost::program_options;
 
 int
 main ( int const argc, char const ** argv )
@@ -55,8 +56,7 @@ main ( int const argc, char const ** argv )
   //typedef logspace ScoreType; // SLOWer than bfloat
   //typedef realspace ScoreType; // Only for very few & small sequences
   
-  // if using anything other than LogProbability for the MatrixValueType,
-  // params.useRabinerScaling should be set to true.
+  // You must use either logspace or bfloat for the MatrixValueType, unless you're debugging with very few and small training sequences.
   typedef bfloat MatrixValueType;
   //typedef logspace MatrixValueType;
   //typedef doublerealspace MatrixValueType;
@@ -71,6 +71,162 @@ main ( int const argc, char const ** argv )
   typedef seqan::Iupac SequenceResidueType;
 #endif // __PROFUSE_USE_AMINOS .. else ..
 
+  try {
+    string config_file;
+    
+    // Declare a group of options that will be 
+    // allowed only on command line
+    po::options_description generic( "Generic options" );
+    generic.add_options()
+      ( "version,v", "print version string" )
+      ( "help", "produce help message" )
+      ( "config,c", po::value<string>( &config_file )->default_value( "profillic.cfg" ),
+        "name of a file of a configuration." )
+      ;
+    
+    // Declare a group of options that will be 
+    // allowed both on command line and in
+    // config file
+    po::options_description config( "Configuration" );
+    config.add_options()
+      ( "output_profile,p", 
+        po::value<string>(),
+        "filename: where to put the trained output profile" )
+      ( "fasta,f", 
+        po::value<string>(),
+        "input sequences, in (unaligned) Fasta format" )
+      ( "starting_profile,s", 
+        po::value<string>(),
+        "optional starting-profile input filename; note that you can read in a profile or start with a random profile, then reset its emission probabilities to even or mix them with some number of multiples of an even profile: see even_starting_profile_multiple." )
+      ( "initial_profile_length,l",
+        po::value<uint32_t>(),
+        "length of the starting profile (only used if the starting_profile is not specified); special value 0 means use the median length of the input sequences and 1 means use the maximum length (default is 1); the starting profile will begin with uniformly-determined emission probabilities, but by default it'll be reset to even before training -- see even_starting_profile_multiple" )
+      ( "random_seed,r",
+        po::value<uint32_t>(),
+        "Random seed to use for the initial profile; defaults to 0, which means use the current time; note that this is generally irrelevant unless you explicitly set even_starting_profile_multiple" )
+      ( "even_starting_profile_multiple,e",
+        po::value<double>(),
+        "If < 0, reset the emission probabilities of the starting profile to even; if > 0, mix the starting profile with this number of multiples of an even profile (defaults to 0 when specifying a starting profile filename, -1 otherwise)." )
+      ( "nseq,n",
+        po::value<uint32_t>(),
+        "number of sequences to use (default is ALL)" )
+      ( "dms,d", "use the Dynamic Model Surgery (DMS) algorithm to prune unused model states and introduce states for oft-used insertions" )
+      ( "unconditional,u", "use the unconditional variant of the algorithm to simultaneously update all positions in each iteration" )
+      ( "globals_first,g", "train the globals before the first positions-training step" )
+      ( "max_iterations,i",
+        po::value<uint32_t>(),
+        "maximum number of iterations to use in training the profile (default 1000)" )
+      ;
+
+    // Hidden options, will be allowed both on command line and
+    // in config file, but will not be shown to the user.
+    po::options_description lengthadjust_opts( "Lengthadjust options" );
+    lengthadjust_opts.add_options()
+      ( "dms.occupancy_threshold",
+        po::value<double>(),
+        "DMS threshold for fraction of sequences inserting/deleting to trigger a model edit of a given position" )
+      ( "dms.insertion_threshold",
+        po::value<double>(),
+        "DMS per-sequence threshold on insertion-open to count that sequence as inserting at a given position" )
+      ( "dms.deletion_threshold",
+        po::value<double>(),
+        "DMS per-sequence threshold on the probability of deletion at a position to count that sequence as deleting the position" )
+      ( "dms.insertion_threshold_increment",
+        po::value<double>(),
+        "DMS insertion threshold increment" )
+      ( "dms.deletion_threshold_increment",
+        po::value<double>(),
+        "DMS deletion threshold increment" )
+      ( "dms.increase_thresholds_for_length_changes_start_iteration",
+        po::value<uint32_t>(),
+        "Eventually we get impatient and want the DMS process to hurry along; this determines the iteration at which we start increasing thresholds using the threshold increments and the min_increment" )
+      ( "dms.increase_thresholds_for_length_changes_min_increment",
+        po::value<double>(),
+        "When increasing DMS thresholds for length changes, apply at least this minimum increment per iteration" )
+      ;
+
+    po::options_description cmdline_options;
+    cmdline_options.add( generic ).add( config ).add( lengthadjust_opts );
+
+    po::options_description config_file_options;
+    config_file_options.add( config ).add( lengthadjust_opts );
+
+    po::options_description visible( "Basic options" );
+    visible.add( generic ).add( config );
+
+#define USAGE() " " << argv[ 0 ] << " [options] <output profile file> <fasta sequences file>"
+        
+//    cout << "Usage: " << argv[ 0 ] << " <output profile file> <fasta sequences file>  [<input profile filename>|<initial profile length or 0 to use median or 1 to use max>|0 [<use Unconditional training>|0 [<lengthadjust insertion threshold or 0 to disable changes to the profile length>|.5 [<lengthadjust deletion threshold>|.5 [<lengthadjust threshold increment>|.0005 [<increase thresholds for length changes after iteration>|500 [<random seed>|0 [<even starting profile multiple (or startEven, if negative)>|0 ]...]" << endl;
+//    cout << "Example usage (typical; with DMS starting from median sequence length): " << argv[ 0 ] << " <output profile file> <fasta sequences file>" << endl;
+//    cout << "Example usage with Unconditional training and DMS: " << argv[ 0 ] << " <output profile file> <fasta sequences file> 0 1" << endl;
+//    cout << "Example usage with Unconditional training and DMS, starting from maximum sequence length: " << argv[ 0 ] << " <output profile file> <fasta sequences file> 1 1" << endl;
+//    cout << "Example usage with fixed profile length (no DMS): " << argv[ 0 ] << " <output profile file> <fasta sequences file> <initial profile length> 0 0" << endl;
+//    cout << "Example usage with a starting profile and a fixed profile length: " << argv[ 0 ] << " <output profile file> <fasta sequences file> <input profile filename> 0 0" << endl;
+    po::positional_options_description p;
+    p.add( "output_profile", 1 );
+    p.add( "fasta", 1 );
+        
+    po::variables_map vm;
+    store( po::command_line_parser( argc, argv ).options( cmdline_options ).positional( p ).run(), vm );
+    notify( vm );
+
+    // Read in the config file.
+    if( config_file.length() > 0 ) {
+      ifstream ifs( config_file.c_str() );
+      if( !ifs ) {
+        cout << "Can't open the config file named \"" << config_file << "\"\n";
+        return 0;
+      } else {
+        store( parse_config_file( ifs, config_file_options ), vm );
+        notify( vm );
+      }
+    }
+
+    if( vm.count( "help" ) > 0 ) {
+      cout << "Usage: " << USAGE() << endl;
+      cout << visible << "\n";
+      return 0;
+    }
+
+    if( vm.count( "version" ) ) {
+      cout << "Profillic, version 1.0\n";
+      return 0;
+    }
+
+    // Required options
+    if( ( vm.count( "output_profile" ) == 0 ) || ( vm.count( "fasta" ) == 0 ) ) {
+      cout << "Usage: " << USAGE() << endl;
+      return 1;
+    }
+    
+    //if( vm.count( "include-path" ) ) {
+    //  cout << "Include paths are: " 
+    //       << vm["include-path"].as< vector<string> >() << "\n";
+    //}
+    //
+    //    if (vm.count("input-file"))
+    //    {
+    //        cout << "Input files are: " 
+    //             << vm["input-file"].as< vector<string> >() << "\n";
+    //    }
+
+    // TODO: ERE I AM
+    Train<ProbabilityType, ScoreType, MatrixValueType, ResidueType, SequenceResidueType> train;
+    train.train( vm );
+
+    return 0;
+  } catch( std::exception& e ) { /// exceptions thrown by boost stuff (etc)
+    cerr << "error: " << e.what() << endl;
+    return 1;
+  } catch( string &err ) {      /// exceptions thrown as strings
+    cerr << "error: " << err << endl;
+    return 1;
+  } catch( ... ) {               /// anything else
+    cerr << "Strange unknown exception" << endl;
+    return 1;
+  }
+
+    /// OLD:
   string fasta_filename;
   string profile_filename;
   string profile_output_filename;
@@ -259,48 +415,49 @@ main ( int const argc, char const ** argv )
   }
   
   Train<ProbabilityType, ScoreType, MatrixValueType, ResidueType, SequenceResidueType> train;
-
-  if( profile_filename.length() == 0 ) {
-    // TODO: REMOVE
-    //cout << "Training using a randomly generated profile." << endl;
-    cout << "Training using the default starting profile." << endl; // Not random; even positions..
-    train.train(
-      fasta_filename,
-      initial_profile_length,
-      profile_output_filename_ptr,
-      lengthadjust_insertion_threshold,
-      lengthadjust_deletion_threshold,
-      lengthadjust_threshold_increment, //( lengthadjust_threshold_increment / ( lengthadjust_deletion_threshold / lengthadjust_insertion_threshold ) ),
-      lengthadjust_threshold_increment,
-      random_seed,
-      lengthadjust_occupancy_threshold,
-      ( bool )lengthadjust_use_sensitive_thresholding,
-      lengthadjust_increase_thresholds_for_length_changes_start_iteration,
-      lengthadjust_increase_thresholds_for_length_changes_min_increment,
-      ( bool )use_unconditional_bw,
-      even_starting_profile_multiple,
-      false // don't train globals first
-    );
-  } else { // if we were given a profile_filename .. else ..
-    // TODO: REMOVE
-    cout << "Training using the profile in file \"" << profile_filename << "\"." << endl;
-    train.train(
-      fasta_filename,
-      profile_filename,
-      profile_output_filename_ptr,
-      lengthadjust_insertion_threshold,
-      lengthadjust_deletion_threshold,
-      lengthadjust_threshold_increment, //( lengthadjust_threshold_increment / ( lengthadjust_deletion_threshold / lengthadjust_insertion_threshold ) ),
-      lengthadjust_threshold_increment,
-      lengthadjust_occupancy_threshold,
-      ( bool )lengthadjust_use_sensitive_thresholding,
-      lengthadjust_increase_thresholds_for_length_changes_start_iteration,
-      lengthadjust_increase_thresholds_for_length_changes_min_increment,
-      ( bool )use_unconditional_bw,
-      even_starting_profile_multiple,
-      false // no, don't /////true // do train globals first
-    );
-  } // End if we were given a profile_filename .. else ..
+  //train.train( vm );
+//
+//  if( profile_filename.length() == 0 ) {
+//    // TODO: REMOVE
+//    //cout << "Training using a randomly generated profile." << endl;
+//    cout << "Training using the default starting profile." << endl; // Not random; even positions..
+//    train.train(
+//      fasta_filename,
+//      initial_profile_length,
+//      profile_output_filename_ptr,
+//      lengthadjust_insertion_threshold,
+//      lengthadjust_deletion_threshold,
+//      lengthadjust_threshold_increment, //( lengthadjust_threshold_increment / ( lengthadjust_deletion_threshold / lengthadjust_insertion_threshold ) ),
+//      lengthadjust_threshold_increment,
+//      random_seed,
+//      lengthadjust_occupancy_threshold,
+//      ( bool )lengthadjust_use_sensitive_thresholding,
+//      lengthadjust_increase_thresholds_for_length_changes_start_iteration,
+//      lengthadjust_increase_thresholds_for_length_changes_min_increment,
+//      ( bool )use_unconditional_bw,
+//      even_starting_profile_multiple,
+//      false // don't train globals first
+//    );
+//  } else { // if we were given a profile_filename .. else ..
+//    // TODO: REMOVE
+//    cout << "Training using the profile in file \"" << profile_filename << "\"." << endl;
+//    train.train(
+//      fasta_filename,
+//      profile_filename,
+//      profile_output_filename_ptr,
+//      lengthadjust_insertion_threshold,
+//      lengthadjust_deletion_threshold,
+//      lengthadjust_threshold_increment, //( lengthadjust_threshold_increment / ( lengthadjust_deletion_threshold / lengthadjust_insertion_threshold ) ),
+//      lengthadjust_threshold_increment,
+//      lengthadjust_occupancy_threshold,
+//      ( bool )lengthadjust_use_sensitive_thresholding,
+//      lengthadjust_increase_thresholds_for_length_changes_start_iteration,
+//      lengthadjust_increase_thresholds_for_length_changes_min_increment,
+//      ( bool )use_unconditional_bw,
+//      even_starting_profile_multiple,
+//      false // no, don't /////true // do train globals first
+//    );
+//  } // End if we were given a profile_filename .. else ..
 
   return 0; // success
 } // main (..)
