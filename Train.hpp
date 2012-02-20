@@ -294,6 +294,10 @@ public:
 
     const uint32_t max_iterations = ( vm.count( "max_iterations" ) ? vm[ "max_iterations" ].as<uint32_t>() : 1000 );
 
+    // Note that when using baldiSiegel, the emissions prior is not used.
+    const double emissions_prior_strength = ( vm.count( "emissions_prior_strength" ) ? vm[ "max_iterations" ].as<double>() : 1 );
+    const double transitions_prior_strength = ( vm.count( "transitions_prior_strength" ) ? vm[ "max_iterations" ].as<double>() : 1 );
+
     // 0 means don't use lengthadjust.
     const bool use_lengthadjust = ( vm.count( "dms" ) > 0 );
 
@@ -326,10 +330,11 @@ public:
   
     if( use_lengthadjust ) {
       cout << "Initial profile length: " << profile.length() << endl;
-      cout << "Lengthadjust insertion threshold: " << lengthadjust_insertion_threshold << endl;
-      cout << "Lengthadjust deletion threshold: " << lengthadjust_deletion_threshold << endl;
-      cout << "Lengthadjust insertion threshold increment: " << lengthadjust_insertion_threshold_increment << endl;
-      cout << "Lengthadjust deletion threshold increment: " << lengthadjust_deletion_threshold_increment << endl;
+      cout << "DMS occupancy threshold: " << lengthadjust_occupancy_threshold << endl;
+      cout << "DMS insertion threshold: " << lengthadjust_insertion_threshold << endl;
+      cout << "DMS deletion threshold: " << lengthadjust_deletion_threshold << endl;
+      cout << "DMS insertion threshold increment: " << lengthadjust_insertion_threshold_increment << endl;
+      cout << "DMS deletion threshold increment: " << lengthadjust_deletion_threshold_increment << endl;
     } else {
       cout << "Profile length: " << profile.length() << endl;
     }
@@ -477,10 +482,10 @@ public:
       double priorNtoN                       = .01;
       double priorNtoB                       = .99;
 #endif // !DISALLOW_FLANKING_TRANSITIONS
-      double priorStrength = 1;
-      double priorStrength_internal_transitions = 1;
-      double priorStrength_flanking_self_transitions = 1; // 1000
-      double priorStrength_flanking_other_transitions = 1; // 1000
+      double priorStrength = emissions_prior_strength;
+      double priorStrength_internal_transitions = transitions_prior_strength;
+      double priorStrength_flanking_self_transitions = transitions_prior_strength; // 1000
+      double priorStrength_flanking_other_transitions = transitions_prior_strength; // 1000
       // Here's how it is set up in ProfuseTest.hpp:
       matchEmissionPrior.reinitializeToEven( priorStrength );
       globalPrior.reinitializeToEven( priorStrength );

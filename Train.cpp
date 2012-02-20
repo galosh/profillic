@@ -116,6 +116,12 @@ main ( int const argc, char const ** argv )
       ( "max_iterations,i",
         po::value<uint32_t>(),
         "maximum number of iterations to use in training the profile (default 1000)" )
+      ( "emisions_prior_strength",
+        po::value<double>(),
+        "strength of priors for emissions parameters (not used for Quadratic Ascent training)" )
+      ( "transitions_prior_strength",
+        po::value<double>(),
+        "strength of priors for transitions parameters" )
       ;
 
     // Hidden options, will be allowed both on command line and
