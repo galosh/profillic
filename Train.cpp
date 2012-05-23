@@ -45,7 +45,7 @@ using namespace galosh;
 namespace po = boost::program_options;
 
 int
-main ( int const argc, char const ** argv )
+main ( int const argc, char ** argv )
 {
   //typedef bfloat ProbabilityType;
   //typedef logspace ProbabilityType;
