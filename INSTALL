@@ -1,4 +1,4 @@
-profillic relies on a number of other libraries.  All are open source
+profuse relies on a number of other libraries.  All are open source
 and are easy to install.
 
 Required external libraries:
@@ -16,9 +16,9 @@ http://pedlefsen.github.com/HMMoC-BFloat-Algebra/
 
 Required galosh libraries:
 ---
-prolific (NOT the same thing as this library, which is "profillic"):  http://galosh.github.com/prolific
+prolific (NOT the same thing as "profillic"):  http://galosh.github.com/prolific
 
-FIRST, retrieve and unpack this library (if you have not already done so), and rename the dir to "profillic".  We will assume in the below instructions that all other required libraries will be installed in the parent directory of profillic, though you may adjust them to suit you if that is not the case.
+FIRST, retrieve and unpack this library (if you have not already done so), and rename the dir to "profuse".  We will assume in the below instructions that all other required libraries will be installed in the parent directory of profuse, though you may adjust them to suit you if that is not the case.
 
 =========
 Installing BOOST (if you don't already have it!  Check first eg "locate boost")
@@ -35,8 +35,8 @@ cd ..
 
 ### NOTE: If you encounter problems later with bjam or with BOOST, it may be because there are multiple BOOST installs on your system.  You may need to first remove the /usr/local/lib/libboost* and /usr/local/include/boost files/dirs, then do the "sudo bjam install" again.  If that fails, consider a local install of BOOST as described above.
 
-# Now go into the profillic directory.
-cd profillic
+# Now go into the profuse directory.
+cd profuse
 ln -s /usr/local/include boost-include
 ln -s /usr/local/lib boost-lib
 cd ..
@@ -53,17 +53,17 @@ cd seqan_release_1.2/demos
 make all
 cd ../..
 
-# Make sure that seqan link in the profillic dir points to the right seqan dir.
-cd profillic
+# Make sure that seqan link in the profuse dir points to the right seqan dir.
+cd profuse
 ln -s ../seqan_release_1.2 seqan
 
 =========
 Installing HMMoC-BFloat-Algebra.
 
 Retrieve HMMoC-BFloat-Algebra from http://pedlefsen.github.com/HMMoC-BFloat-Algebra/, and unpack it.
-# Create the link to it in the profillic dir:
+# Create the link to it in the profuse dir:
 # (note that the hex number "582a53e" might be different for you)
-cd profillic
+cd profuse
 ln -s ../pedlefsen-HMMoC-BFloat-Algebra-582a53e HMMoC-BFloat-Algebra
 cd ..
 
@@ -71,20 +71,20 @@ cd ..
 Installing the prolific header-only library.
 
 Retrieve prolific from http://galosh.github.com/prolific/, and unpack it.
-# Create the link to it in the profillic dir:
+# Create the link to it in the profuse dir:
 # (note that the hex number "bb99906" might be different for you)
-cd profillic
+cd profuse
 ln -s ../galosh-prolific-bb99906 prolific
 cd ..
 
 =========
-FINALLY, installing profillic.
+FINALLY, installing profuse.
 
-cd profillic
+cd profuse
 
 # First must make sure you can compile it in the fast-to-compile, slow-to-run "debug" variant, before trying to compile the slow-to-compile "release" variant.
 bjam --clean
-bjam debug profillic_AA_CQA
+bjam debug align_AA
 
 # If that works (fingers crossed!), do
 bjam install release
