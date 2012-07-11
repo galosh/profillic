@@ -1,8 +1,9 @@
-This is profuse, a suite of programs for working with Profile HMMs.
-Please see the document CITING, which should have been included with
-this file.  You may use at will, subject to the license (Apache v2.0),
-but *please cite the relevant papers* in your documentation and
-publications associated with uses of this library.  Thank you!
+This is profillic, a suite of programs for estimating parameters of
+Profile HMMs.  Please see the document CITING, which should have been
+included with this file.  You may use at will, subject to the license
+(Apache v2.0), but *please cite the relevant papers* in your
+documentation and publications associated with uses of this library.
+Thank you!
 
 Copyright (C) 2011 by Paul T Edlefsen, Fred Hutchinson Cancer Research
 Center.
@@ -22,7 +23,7 @@ limitations under the License.
 -----
 PLATFORMS:
 
-Although profuse has been designed for cross-platform use, the
+Although profillic has been designed for cross-platform use, the
 current version has only been tested on Mac OS X systems.  It should
 easily install on any other *nix platform.  If you are on Windows, and
 want to compile this, we recommend using Cygwin.  If you are able to
@@ -31,7 +32,7 @@ what you did to make it happen.  Thanks.
 
 DEPENDENCIES:
 
-profuse relies on a number of other libraries.  All are open source
+profillic relies on a number of other libraries.  All are open source
 and are easy to install.
 
 Required external libraries:
