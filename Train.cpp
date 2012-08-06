@@ -42,7 +42,7 @@ char **g_argv;
 #endif // __HAVE_MUSCLE
 
 using namespace galosh;
-namespace po = boost::program_options;
+//namespace po = boost::program_options;
 
 int
 main ( int const argc, char ** argv )

@@ -88,7 +88,7 @@ template <class ProfileType,
     typedef Sequence<SequenceResidueType> SequenceType;
 
     class Parameters :
-    public ProlificParameters<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::Parameters
+       public ProlificParameters<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::Parameters
     {
       // Boost serialization
     private:
