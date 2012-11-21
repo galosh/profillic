@@ -61,7 +61,7 @@
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
 #include <seqan/file.h>
-#include <seqan/find_motif.h>
+//#include <seqan/find_motif.h>
 
 #ifdef __HAVE_MUSCLE
 #include "muscle/distfunc.h"
