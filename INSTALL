@@ -6,10 +6,8 @@ Required external libraries:
 BOOST (tested with version 1.46.1):
 http://sourceforge.net/projects/boost/files/boost/1.46.1/
 
-Seqan version 1.2 (Note that the most recent version is 1.3 but we
-have not yet updated our code to be compatible with the new version,
-so you'll have to get version 1.2):
-http://www.seqan.de/uploads/media/Seqan_Release_1.2.zip
+Seqan snapshot
+svn co http://svn.seqan.de/seqan/trunk seqan-trunk
 
 HMMoC-BFloat-Algebra:
 http://pedlefsen.github.com/HMMoC-BFloat-Algebra/
@@ -18,7 +16,7 @@ Required galosh libraries:
 ---
 prolific (NOT the same thing as this library, which is "profillic"):  http://galosh.github.com/prolific
 
-FIRST, retrieve and unpack this library (if you have not already done so), and rename the dir to "profillic".  We will assume in the below instructions that all other required libraries will be installed in the parent directory of profillic, though you may adjust them to suit you if that is not the case.
+FIRST, retrieve and unpack _this_ library (if you have not already done so), and rename the dir to "profillic".  We will assume in the below instructions that all other required libraries will be installed in the parent directory of profillic, though you may adjust them to suit you if that is not the case.
 
 =========
 Installing BOOST (if you don't already have it!  Check first eg "locate boost")
@@ -42,20 +40,13 @@ ln -s /usr/local/lib boost-lib
 cd ..
 
 =========
-Installing Seqan version 1.2 (Note that the most recent version is 1.3 but we
-have not yet updated our code to be compatible with the new version,
-so you'll have to get version 1.2).
-
-## Get Seqan if you don't already have it (eg from http://www.seqan.de/uploads/media/Seqan_Release_1.2.zip -- note that it explodes where you unzip it, so first create a dir for it eg `mkdir seqan_release_1.2; cd seqan_release_1.2; unzip ~/Downloads/Seqan_Release_1.2.zip`)
-
-# Go into seqan's demos dir
-cd seqan_release_1.2/demos
-make all
-cd ../..
+Installing Seqan
+## Get Seqan if you don't already have it
+svn co http://svn.seqan.de/seqan/trunk seqan-trunk
 
 # Make sure that seqan link in the profillic dir points to the right seqan dir.
 cd profillic
-ln -s ../seqan_release_1.2 seqan
+ln -s ../seqan-trunk
 
 =========
 Installing HMMoC-BFloat-Algebra.
