@@ -2853,7 +2853,7 @@ template <class ProfileType,
         }
 #else // !ALLOW_BOLTZMANN_GIBBS
         cout << "Baum-Welch";
-#endif ALLOW_BOLTZMANN_GIBBS
+#endif // ALLOW_BOLTZMANN_GIBBS
         if( m_trainingParameters.proposeProfileLengthChanges ) {
           cout << ", using Dynamic Model Surgery with initial ";
           if(
