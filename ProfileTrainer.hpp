@@ -225,14 +225,14 @@ template <class ProfileType,
        * Note that this must be at least 1.
        */
       uint32_t maxIterations; // at least 1
-  #define DEFAULT_maxIterations 30
+  #define DEFAULT_maxIterations 1000
   
       /**
        * How many times should we cycle through the training steps before,
        * despite continuing improvement, we move on to refining indels?
        */
       uint32_t maxPositionCycles;
-  #define DEFAULT_maxPositionCycles 4
+  #define DEFAULT_maxPositionCycles 1
 
       /**
        * How many times should we cycle through the training steps before,
@@ -253,20 +253,21 @@ template <class ProfileType,
   #define DEFAULT_maxPositionCycles_globals 4
 
       /**
+       * Set this to 0 for straight-up BW/CBW.  Non-zero values allow
+       * intermediate step sizes in the direction of the BW/CBW update.
        * Sometimes we have to reject the conditional BW updates because the
-       * score would go down.  In such cases we try again at various
+       * score would go down.  In such cases we can try again at various
        * intermediate steps.  We do this by adding some fraction of the updated
        * position values to the original values.  When this fraction is 1, for
        * instance, the old and new values will be averaged.  When the fraction
-       * is less than 1, it will be a weighted average.  The value of this
+       * is not 1, it will be a weighted average.  The value of this
        * parameter is the largest denomenator of the weight on the new values.
        * We try denomenators from
        * minBaumWelchInverseScalar..maxBaumWelchInverseScalar, by
-       * baumWelchInverseScalarIncrement.  If minBaumWelchInverseScalar is
-       * greater than 0, we don't even try the usual direct update.
+       * baumWelchInverseScalarIncrement.
        */
       float maxBaumWelchInverseScalar;
-  #define DEFAULT_maxBaumWelchInverseScalar 8.0F
+  #define DEFAULT_maxBaumWelchInverseScalar 0.0F
 
       /**
        * See maxBaumWelchInverseScalar.
@@ -1596,9 +1597,6 @@ template <class ProfileType,
     globalPrior = copy_from.globalPrior;
     positionShouldBeTrained = copy_from.positionShouldBeTrained;
 
-    // TODO: ERE I AM.  Seeing if this is what makes the difference.  Since the options map is just used for setting the initial values, I don't htink we should use it for this (or anything else).
-    //this->m_options_map.clear();
-    //this->m_options_map = copy_from.m_options_map;
     siegelMaxFindingThePeakAttempts_positions = copy_from.siegelMaxFindingThePeakAttempts_positions;
     baldiHybrid = copy_from.baldiHybrid;
     siegelEpsilonScaleFactor = copy_from.siegelEpsilonScaleFactor;
@@ -1637,29 +1635,9 @@ template <class ProfileType,
         //if( debug >= DEBUG_All ) {
         //  cout << "[debug] ProfileTrainer::Parameters::resetToDefaults()" << endl;
         //} // End if DEBUG_All
-        trainProfileGlobals = DEFAULT_trainProfileGlobals;
-        trainProfilePositions = DEFAULT_trainProfilePositions;
-        trainGlobalsFirst = DEFAULT_trainGlobalsFirst;
-        minIterations = DEFAULT_minIterations;
-        maxIterations = DEFAULT_maxIterations;
-        maxPositionCycles = DEFAULT_maxPositionCycles;
-        maxPositionCycles_sequence_identifiers = DEFAULT_maxPositionCycles_sequence_identifiers;
-        maxPositionCycles_globals = DEFAULT_maxPositionCycles_globals;
-        maxBaumWelchInverseScalar = DEFAULT_maxBaumWelchInverseScalar;
-        minBaumWelchInverseScalar = DEFAULT_minBaumWelchInverseScalar;
-        baumWelchInverseScalarIncrement = DEFAULT_baumWelchInverseScalarIncrement;
-        maxBaumWelchInverseScalar_sequence_identifiers = DEFAULT_maxBaumWelchInverseScalar_sequence_identifiers;
-        minBaumWelchInverseScalar_sequence_identifiers = DEFAULT_minBaumWelchInverseScalar_sequence_identifiers;
-        baumWelchInverseScalarIncrement_sequence_identifiers = DEFAULT_baumWelchInverseScalarIncrement_sequence_identifiers;
-        maxBaumWelchInverseScalar_globals = DEFAULT_maxBaumWelchInverseScalar_globals;
-        minBaumWelchInverseScalar_globals = DEFAULT_minBaumWelchInverseScalar_globals;
-        baumWelchInverseScalarIncrement_globals = DEFAULT_baumWelchInverseScalarIncrement_globals;
-        scorePercentChangeMinimum_iteration = DEFAULT_scorePercentChangeMinimum_iteration;
-        scorePercentChangeMinimum_position_cycle = DEFAULT_scorePercentChangeMinimum_position_cycle;
-        euclideanDistanceMinimum_iteration = DEFAULT_euclideanDistanceMinimum_iteration;
-        euclideanDistanceMinimum_position_cycle = DEFAULT_euclideanDistanceMinimum_position_cycle;
-        alwaysAccept = DEFAULT_alwaysAccept;
+
         useAlignmentProfiles = DEFAULT_useAlignmentProfiles;
+
         proposeProfileLengthChanges = DEFAULT_proposeProfileLengthChanges;
         proposeDeletingThreshold = DEFAULT_proposeDeletingThreshold;
         proposeInsertingThreshold = DEFAULT_proposeInsertingThreshold;
@@ -1673,14 +1651,47 @@ template <class ProfileType,
         increaseThresholdsForLengthChanges_minIncrement = DEFAULT_increaseThresholdsForLengthChanges_minIncrement;
         alwaysAccept_disallowThreshold_profileDistance_iteration = DEFAULT_alwaysAccept_disallowThreshold_profileDistance_iteration;
         numIterationsBetweenLengthChanges = DEFAULT_numIterationsBetweenLengthChanges;
+
         useUnconditionalBaumWelch = DEFAULT_useUnconditionalBaumWelch;
         baldiLearningRate = DEFAULT_baldiLearningRate;
         baldiTemperature = DEFAULT_baldiTemperature;
+
         profileValueMinimum = DEFAULT_profileValueMinimum;
-        usePriors = DEFAULT_usePriors;
         positionShouldBeTrained = DEFAULT_positionShouldBeTrained;
 
         // ERE I AM.  DOPTE.  TODO: Comment these and fix (and then comment out #include "ProfileTrainerOptions.hpp" from ProfuseTestOptions.hpp)
+        trainProfileGlobals = DEFAULT_trainProfileGlobals;
+        trainProfilePositions = DEFAULT_trainProfilePositions;
+        trainGlobalsFirst = DEFAULT_trainGlobalsFirst;
+
+        minIterations = DEFAULT_minIterations;
+        maxIterations = DEFAULT_maxIterations;
+        maxPositionCycles = DEFAULT_maxPositionCycles;
+        maxPositionCycles_globals = DEFAULT_maxPositionCycles_globals;
+        // Not used?
+        maxPositionCycles_sequence_identifiers = DEFAULT_maxPositionCycles_sequence_identifiers;
+
+        maxBaumWelchInverseScalar = DEFAULT_maxBaumWelchInverseScalar;
+        minBaumWelchInverseScalar = DEFAULT_minBaumWelchInverseScalar;
+        baumWelchInverseScalarIncrement = DEFAULT_baumWelchInverseScalarIncrement;
+        maxBaumWelchInverseScalar_globals = DEFAULT_maxBaumWelchInverseScalar_globals;
+        minBaumWelchInverseScalar_globals = DEFAULT_minBaumWelchInverseScalar_globals;
+        baumWelchInverseScalarIncrement_globals = DEFAULT_baumWelchInverseScalarIncrement_globals;
+        // Not used?
+        baumWelchInverseScalarIncrement_sequence_identifiers = DEFAULT_baumWelchInverseScalarIncrement_sequence_identifiers;
+        // Not used?
+        maxBaumWelchInverseScalar_sequence_identifiers = DEFAULT_maxBaumWelchInverseScalar_sequence_identifiers;
+        // Not used?
+        minBaumWelchInverseScalar_sequence_identifiers = DEFAULT_minBaumWelchInverseScalar_sequence_identifiers;
+
+        usePriors = DEFAULT_usePriors;
+        alwaysAccept = DEFAULT_alwaysAccept;
+
+        scorePercentChangeMinimum_iteration = DEFAULT_scorePercentChangeMinimum_iteration;
+        scorePercentChangeMinimum_position_cycle = DEFAULT_scorePercentChangeMinimum_position_cycle;
+        euclideanDistanceMinimum_iteration = DEFAULT_euclideanDistanceMinimum_iteration;
+        euclideanDistanceMinimum_position_cycle = DEFAULT_euclideanDistanceMinimum_position_cycle;
+
         siegelMaxFindingThePeakAttempts_positions = DEFAULT_siegelMaxFindingThePeakAttempts_positions;
         baldiHybrid = DEFAULT_baldiHybrid;
         siegelEpsilonScaleFactor = DEFAULT_siegelEpsilonScaleFactor;
