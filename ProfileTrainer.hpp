@@ -73,6 +73,17 @@ using std::endl;
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/version.hpp>
 
+#include "boost/filesystem.hpp"
+
+#include <boost/program_options.hpp>
+namespace po = boost::program_options;
+namespace fs = boost::filesystem;
+#include "CommandlineParameters.hpp"
+/// TAH 6/12 predefining DEFAULT_OPTIONS_DESCRIPION and DEFAULT_VARIABLES_MAP will
+/// replace those values in the CommandlineParameters macros
+#define DEFAULT_OPTIONS_DESCRIPTION m_profiletrainer_options
+#define DEFAULT_VARIABLES_MAP       m_parameters.m_options_map
+
 namespace galosh {
 
 template <class ProfileType,
@@ -90,6 +101,10 @@ template <class ProfileType,
     class Parameters :
        public ProlificParameters<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::Parameters
     {
+// ERE I AM.  DOPTE.  TODO: Uncomment this and fix (and then comment out #include "ProfileTrainerOptions.hpp" from ProfuseTestOptions.hpp)
+//    public:
+//       po::options_description m_profiletrainer_options;
+
       // Boost serialization
     private:
       typedef typename ProlificParameters<ResidueType, ProbabilityType,ScoreType,MatrixValueType>::Parameters dynamic_programming_parameters_t;
@@ -98,58 +113,75 @@ template <class ProfileType,
       void serialize ( Archive & ar, const unsigned int /* file_version */ )
       {
         // save/load base class information
-        ar & BOOST_SERIALIZATION_BASE_OBJECT_NVP( dynamic_programming_parameters_t );
+//        ar & BOOST_SERIALIZATION_BASE_OBJECT_NVP( dynamic_programming_parameters_t );
 
-        ar & BOOST_SERIALIZATION_NVP( trainProfileGlobals );
-        ar & BOOST_SERIALIZATION_NVP( trainProfilePositions );
-        ar & BOOST_SERIALIZATION_NVP( trainGlobalsFirst );
-        ar & BOOST_SERIALIZATION_NVP( minIterations );
-        ar & BOOST_SERIALIZATION_NVP( maxIterations );
-        ar & BOOST_SERIALIZATION_NVP( maxPositionCycles );
-        ar & BOOST_SERIALIZATION_NVP( maxPositionCycles_sequence_identifiers );
-        ar & BOOST_SERIALIZATION_NVP( maxPositionCycles_globals );
-        ar & BOOST_SERIALIZATION_NVP( maxBaumWelchInverseScalar );
-        ar & BOOST_SERIALIZATION_NVP( minBaumWelchInverseScalar );
-        ar & BOOST_SERIALIZATION_NVP( baumWelchInverseScalarIncrement );
-        ar & BOOST_SERIALIZATION_NVP( maxBaumWelchInverseScalar_sequence_identifiers );
-        ar & BOOST_SERIALIZATION_NVP( minBaumWelchInverseScalar_sequence_identifiers );
-        ar & BOOST_SERIALIZATION_NVP( baumWelchInverseScalarIncrement_sequence_identifiers );
-        ar & BOOST_SERIALIZATION_NVP( maxBaumWelchInverseScalar_globals );
-        ar & BOOST_SERIALIZATION_NVP( minBaumWelchInverseScalar_globals );
-        ar & BOOST_SERIALIZATION_NVP( baumWelchInverseScalarIncrement_globals );
-        ar & BOOST_SERIALIZATION_NVP( scorePercentChangeMinimum_iteration );
-        ar & BOOST_SERIALIZATION_NVP( scorePercentChangeMinimum_position_cycle );
-        ar & BOOST_SERIALIZATION_NVP( euclideanDistanceMinimum_iteration );
-        ar & BOOST_SERIALIZATION_NVP( euclideanDistanceMinimum_position_cycle );
-        ar & BOOST_SERIALIZATION_NVP( alwaysAccept );
-        ar & BOOST_SERIALIZATION_NVP( useAlignmentProfiles );
-        ar & BOOST_SERIALIZATION_NVP( proposeProfileLengthChanges );
-        ar & BOOST_SERIALIZATION_NVP( proposeDeletingThreshold );
-        ar & BOOST_SERIALIZATION_NVP( proposeInsertingThreshold );
-        ar & BOOST_SERIALIZATION_NVP( proposeDeletingThreshold_increment );
-        ar & BOOST_SERIALIZATION_NVP( proposeInsertingThreshold_increment );
-        ar & BOOST_SERIALIZATION_NVP( proposeInsertingPreAlignThreshold );
-        ar & BOOST_SERIALIZATION_NVP( proposeInsertingPostAlignThreshold );
-        ar & BOOST_SERIALIZATION_NVP( proposeInsertingOccupancyThreshold );
-        ar & BOOST_SERIALIZATION_NVP( useSensitiveThresholding );
-        ar & BOOST_SERIALIZATION_NVP( increaseThresholdsForLengthChanges_startIteration );
-        ar & BOOST_SERIALIZATION_NVP( increaseThresholdsForLengthChanges_minIncrement );
-        ar & BOOST_SERIALIZATION_NVP( alwaysAccept_disallowThreshold_profileDistance_iteration );
-        ar & BOOST_SERIALIZATION_NVP( numIterationsBetweenLengthChanges );
-        ar & BOOST_SERIALIZATION_NVP( useUnconditionalBaumWelch );
-        ar & BOOST_SERIALIZATION_NVP( baldiLearningRate );
-        ar & BOOST_SERIALIZATION_NVP( baldiTemperature );
-        ar & BOOST_SERIALIZATION_NVP( profileValueMinimum );
-        ar & BOOST_SERIALIZATION_NVP( usePriors );
-        ar & BOOST_SERIALIZATION_NVP( positionShouldBeTrained );
-        ar & BOOST_SERIALIZATION_NVP( siegelMaxFindingThePeakAttempts_positions );
-        ar & BOOST_SERIALIZATION_NVP( baldiHybrid );
-        ar & BOOST_SERIALIZATION_NVP( siegelEpsilonScaleFactor );
-        ar & BOOST_SERIALIZATION_NVP( unconditionalIsolatesGlobals );
-        ar & BOOST_SERIALIZATION_NVP( siegelMaxRefiningThePeakSteps_positions );
-        ar & BOOST_SERIALIZATION_NVP( siegelRefiningThePeakStepsConvergenceThreshold );
-        ar & BOOST_SERIALIZATION_NVP( siegelMaxFindingTheGradientAttempts_positions );
-        ar & BOOST_SERIALIZATION_NVP( siegelMinEpsilon );
+/**
+ * \note This is a hack based on Paul's suggestion that the real use for the serialization
+ * is for making a permanent file copy of parameter values, not for deserialization.
+ * The "correct" way to do this would be to serialize (and potentially deserialize) the
+ * the variables_map object (m_options_map) within the Parameters object.
+ * Unfortunately, the variables_map object ultimately stores objects of type boost:any,
+ * which are not serializable in the general case. However, since we tend to store only
+ * doubles, unsigned ints and strings, it may be serializable for these particular cases.
+ * That counts as a \todo for the current time.
+ */
+
+// ERE I AM.  DOPTE.  TODO: Uncomment this and fix (and then comment out #include "ProfileTrainerOptions.hpp" from ProfuseTestOptions.hpp)
+//#define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP) \
+//        ar & boost::serialization::make_nvp(#NAME, ((galosh::Parameters)(*this)).m_options_map[#NAME].as<TYPE>())
+//        #include "ProfileTrainerOptions.hpp"
+//#undef GALOSH_DEF_OPT
+
+//        ar & BOOST_SERIALIZATION_NVP( trainProfileGlobals );
+//        ar & BOOST_SERIALIZATION_NVP( trainProfilePositions );
+//        ar & BOOST_SERIALIZATION_NVP( trainGlobalsFirst );
+//        ar & BOOST_SERIALIZATION_NVP( minIterations );
+//        ar & BOOST_SERIALIZATION_NVP( maxIterations );
+//        ar & BOOST_SERIALIZATION_NVP( maxPositionCycles );
+//        ar & BOOST_SERIALIZATION_NVP( maxPositionCycles_sequence_identifiers );
+//        ar & BOOST_SERIALIZATION_NVP( maxPositionCycles_globals );
+//        ar & BOOST_SERIALIZATION_NVP( maxBaumWelchInverseScalar );
+//        ar & BOOST_SERIALIZATION_NVP( minBaumWelchInverseScalar );
+//        ar & BOOST_SERIALIZATION_NVP( baumWelchInverseScalarIncrement );
+//        ar & BOOST_SERIALIZATION_NVP( maxBaumWelchInverseScalar_sequence_identifiers );
+//        ar & BOOST_SERIALIZATION_NVP( minBaumWelchInverseScalar_sequence_identifiers );
+//        ar & BOOST_SERIALIZATION_NVP( baumWelchInverseScalarIncrement_sequence_identifiers );
+//        ar & BOOST_SERIALIZATION_NVP( maxBaumWelchInverseScalar_globals );
+//        ar & BOOST_SERIALIZATION_NVP( minBaumWelchInverseScalar_globals );
+//        ar & BOOST_SERIALIZATION_NVP( baumWelchInverseScalarIncrement_globals );
+//        ar & BOOST_SERIALIZATION_NVP( scorePercentChangeMinimum_iteration );
+//        ar & BOOST_SERIALIZATION_NVP( scorePercentChangeMinimum_position_cycle );
+//        ar & BOOST_SERIALIZATION_NVP( euclideanDistanceMinimum_iteration );
+//        ar & BOOST_SERIALIZATION_NVP( euclideanDistanceMinimum_position_cycle );
+//        ar & BOOST_SERIALIZATION_NVP( alwaysAccept );
+//        ar & BOOST_SERIALIZATION_NVP( useAlignmentProfiles );
+//        ar & BOOST_SERIALIZATION_NVP( proposeProfileLengthChanges );
+//        ar & BOOST_SERIALIZATION_NVP( proposeDeletingThreshold );
+//        ar & BOOST_SERIALIZATION_NVP( proposeInsertingThreshold );
+//        ar & BOOST_SERIALIZATION_NVP( proposeDeletingThreshold_increment );
+//        ar & BOOST_SERIALIZATION_NVP( proposeInsertingThreshold_increment );
+//        ar & BOOST_SERIALIZATION_NVP( proposeInsertingPreAlignThreshold );
+//        ar & BOOST_SERIALIZATION_NVP( proposeInsertingPostAlignThreshold );
+//        ar & BOOST_SERIALIZATION_NVP( proposeInsertingOccupancyThreshold );
+//        ar & BOOST_SERIALIZATION_NVP( useSensitiveThresholding );
+//        ar & BOOST_SERIALIZATION_NVP( increaseThresholdsForLengthChanges_startIteration );
+//        ar & BOOST_SERIALIZATION_NVP( increaseThresholdsForLengthChanges_minIncrement );
+//        ar & BOOST_SERIALIZATION_NVP( alwaysAccept_disallowThreshold_profileDistance_iteration );
+//        ar & BOOST_SERIALIZATION_NVP( numIterationsBetweenLengthChanges );
+//        ar & BOOST_SERIALIZATION_NVP( useUnconditionalBaumWelch );
+//        ar & BOOST_SERIALIZATION_NVP( baldiLearningRate );
+//        ar & BOOST_SERIALIZATION_NVP( baldiTemperature );
+//        ar & BOOST_SERIALIZATION_NVP( profileValueMinimum );
+//        ar & BOOST_SERIALIZATION_NVP( usePriors );
+//        ar & BOOST_SERIALIZATION_NVP( positionShouldBeTrained );
+//        ar & BOOST_SERIALIZATION_NVP( siegelMaxFindingThePeakAttempts_positions );
+//        ar & BOOST_SERIALIZATION_NVP( baldiHybrid );
+//        ar & BOOST_SERIALIZATION_NVP( siegelEpsilonScaleFactor );
+//        ar & BOOST_SERIALIZATION_NVP( unconditionalIsolatesGlobals );
+//        ar & BOOST_SERIALIZATION_NVP( siegelMaxRefiningThePeakSteps_positions );
+//        ar & BOOST_SERIALIZATION_NVP( siegelRefiningThePeakStepsConvergenceThreshold );
+//        ar & BOOST_SERIALIZATION_NVP( siegelMaxFindingTheGradientAttempts_positions );
+//        ar & BOOST_SERIALIZATION_NVP( siegelMinEpsilon );
       } // serialize( Archive &, const unsigned int )
 
     public:
@@ -1421,7 +1453,6 @@ template <class ProfileType,
       return( return_value );
     } // maximizeThreePointQuadratic(..)
 
-
   }; // End class ProfileTrainer
 
   //======//// potentially non-inline implementations ////========//
@@ -1440,6 +1471,13 @@ template <class ProfileType,
       cout << "[debug] ProfileTrainer::Parameters::<init>()" << endl;
     } // End if DEBUG_All
     this->resetToDefaults();
+// ERE I AM.  DOPTE.  TODO: Uncomment this and fix (and then comment out #include "ProfileTrainerOptions.hpp" from ProfuseTestOptions.hpp)
+//#undef GALOSH_DEF_OPT
+//#define PROFUSETEST_DEFAULT_TMP_ARRAY_TO_VECTOR
+//#define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP)          \
+//		  DEFAULT_OPTIONS_DESCRIPTION.add_options()(#NAME,po::value<TYPE>()->default_value(DEFAULTVAL) TMP_EXTRA_STUFF,HELP)
+//        #include "ProfileTrainerOptions.hpp"  /// define all the commandline options for this module
+//#undef GALOSH_DEF_OPT
   } // galosh::ProfileTrainer::Parameters::<init>()
 
   template <class ProfileType,
@@ -1557,6 +1595,10 @@ template <class ProfileType,
     matchEmissionPrior = copy_from.matchEmissionPrior;
     globalPrior = copy_from.globalPrior;
     positionShouldBeTrained = copy_from.positionShouldBeTrained;
+
+    // TODO: ERE I AM.  Seeing if this is what makes the difference.  Since the options map is just used for setting the initial values, I don't htink we should use it for this (or anything else).
+    //this->m_options_map.clear();
+    //this->m_options_map = copy_from.m_options_map;
     siegelMaxFindingThePeakAttempts_positions = copy_from.siegelMaxFindingThePeakAttempts_positions;
     baldiHybrid = copy_from.baldiHybrid;
     siegelEpsilonScaleFactor = copy_from.siegelEpsilonScaleFactor;
@@ -1637,6 +1679,8 @@ template <class ProfileType,
         profileValueMinimum = DEFAULT_profileValueMinimum;
         usePriors = DEFAULT_usePriors;
         positionShouldBeTrained = DEFAULT_positionShouldBeTrained;
+
+        // ERE I AM.  DOPTE.  TODO: Comment these and fix (and then comment out #include "ProfileTrainerOptions.hpp" from ProfuseTestOptions.hpp)
         siegelMaxFindingThePeakAttempts_positions = DEFAULT_siegelMaxFindingThePeakAttempts_positions;
         baldiHybrid = DEFAULT_baldiHybrid;
         siegelEpsilonScaleFactor = DEFAULT_siegelEpsilonScaleFactor;
