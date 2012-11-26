@@ -7794,6 +7794,7 @@ template <class ProfileType,
                     //cout << "BEFORE usePriors, m_global_entente is " << m_global_entente << endl;
                     //cout << "m_globalPrior is " << m_globalPrior << endl;
 
+                    // NOTE: We do this even when using Baldi/Siegel since we actually update globals using BW when using Baldi/Siegel.
                     m_globalPrior.incorporatePrior( m_global_entente );
 
                     // TODO: REMOVE
@@ -7865,6 +7866,7 @@ template <class ProfileType,
                             }
                             m_position_entente =
                               m_unconditional_position_ententes_vector[ m_row_i - 1 ];
+                            // TODO: Incorporate priors if usePriors is true?  Right now, the "hybrid" ignores priors for the position-updates.
                             m_position_entente.normalize(
                               m_trainingParameters.profileValueMinimum
                             );
