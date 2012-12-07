@@ -364,7 +364,7 @@ public:
         
     // TODO: REMOVE!  Testing..  (This is a good setting for the small numbers of observed sequences in eg the STEP trial when training from the starting profile (pretrained from eg all lanl seqs).  Use the known globals -- this avoids converging to silly all-indel profiles, and also acknowledges that the small data set shouldn't overwhelm what we already know about gaps (but TODO: allow using starting profile as a prior, with adjustable prior strength).  Disallowing priors here is key to see the effects of the data, but of course weakening the prior would also be a possibility, and disabling it can encourage local optima.  Again, starting with the 'known' profile seems key.
     //training_parameters_template.trainProfileGlobals = false; // TODO: REMOVE.
-    training_parameters_template.usePriors = true;
+    training_parameters_template.usePriors = false;//true;
 
     // TODO: Try with the lengthadjust: maxBaumWelchInverseScalar > 0
     training_parameters_template.minIterations = 1; // But see below...
@@ -382,6 +382,8 @@ public:
     training_parameters_template.maxBaumWelchInverseScalar_globals = 0; // Straight-up bw.
     training_parameters_template.scorePercentChangeMinimum_position_cycle = 1;
     training_parameters_template.scorePercentChangeMinimum_iteration = .01;
+    training_parameters_template.euclideanDistanceMinimum_position_cycle = 1E-5;
+    training_parameters_template.euclideanDistanceMinimum_iteration = 1E-5;
     training_parameters_template.alwaysAccept = false;//true;//( use_lengthadjust ? true : false );
     training_parameters_template.alwaysAccept_disallowThreshold_profileDistance_iteration = 1E-5;
 
@@ -447,10 +449,12 @@ public:
     training_parameters_template.baldiLearningRate = 1; // 0 means noBaldi!
     training_parameters_template.baldiTemperature = 1;
     training_parameters_template.baldiHybrid = false;
-    training_parameters_template.siegelMaxFindingThePeakAttempts_positions = 1000; // 0 means Baldi not Baldi / Siegel !!!
     training_parameters_template.siegelEpsilonScaleFactor = 1.5;
-    training_parameters_template.siegelMaxRefiningThePeakSteps_positions = 1;//1000;
+    training_parameters_template.siegelMaxFindingThePeakAttempts_positions = 10000; // 0 means Baldi not Baldi / Siegel !!!
     training_parameters_template.siegelRefiningThePeakStepsConvergenceThreshold = 1E-5;
+    training_parameters_template.siegelMaxFindingTheGradientAttempts_positions = 10;
+    training_parameters_template.siegelMinEpsilon = 1E-5;
+    training_parameters_template.siegelMaxRefiningThePeakSteps_positions = 1000;
     training_parameters_template.minBaumWelchInverseScalar = 0;
     training_parameters_template.maxBaumWelchInverseScalar = 0;
     //training_parameters_template.maxPositionCycles = 10;

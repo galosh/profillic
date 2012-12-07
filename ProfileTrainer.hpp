@@ -1242,7 +1242,6 @@ template <class ProfileType,
 #ifdef ALLOW_BOLTZMANN_GIBBS
   // TODO: REMOVE?  FOR DEBUGGING BALDI STUFF.
   static const bool m_baldi_be_verbose = false;//true;
-  //bool m_baldi_be_verbose;
 
     /**
      * When using unconditional Baum-Welch, we need to store up all of the
@@ -1389,7 +1388,7 @@ template <class ProfileType,
     // Return the x value at which y is maximized, if ( x1, y1 ), ( x2, y2 ), and (
     // x3, y3 ) are points on a parabola.
     //
-    double
+    inline double
     maximizeThreePointQuadratic (
       double x1,
       ScoreType y1,
@@ -1399,6 +1398,7 @@ template <class ProfileType,
       ScoreType y3
     )
     {
+#ifndef NDEBUG
       // They can't all be 0.
       assert( !( ( x1 == 0 ) && ( x2 == 0 ) && ( x3 == 0 ) ) );
       // Everything must be non-negative.  The ys surely are (since they are ScoreTypes).
@@ -1413,7 +1413,11 @@ template <class ProfileType,
       } else { // x1 > x2
         assert( x2 > x3 );
       }
-    
+#endif // NDEBUG    
+      if( ( x1 == x2 ) && ( x2 == x3 ) ) {
+        // They're all the same.  This is silly.
+        return( x2 );
+      }
       if( ( y1 == y2 ) && ( y2 == y3 ) ) {
         // They're all the same.  This is a plateau.  Tha max is y1 == y2
         // == y3, but since we're conservative we'll return the least x.
@@ -1426,24 +1430,40 @@ template <class ProfileType,
       bool s21_is_negative = false;
       if( x2 > x1 ) {
         s21 /= ( x2 - x1 );
-      } else { // x1 > x2
+      } else if( x1 > x2 ) {
         s21 /= ( x1 - x2 );
         s21_is_negative = true;
+      } else {
+        // oookay, x1 == x2.
+        if( y3 > y2 ) {
+          return( x3 );
+        } else {
+          return( x2 );
+        }
       }
+
       ScoreType s32 = ( y2 - y3 );
       bool s32_is_negative = true;
       if( x3 > x2 ) {
         s32 /= ( x3 - x2 );
-      } else { // x2 > x3
+      } else if( x2 > x3 ) {
         s32 /= ( x2 - x3 );
         s32_is_negative = false;
+      } else {
+        // oookay, x3 == x2.
+        if( y1 > y2 ) {
+          return( x1 );
+        } else {
+          return( x2 );
+        }
       }
       assert( s21_is_negative != s32_is_negative );
-      ScoreType s32_minus_s21 = ( s32 + s21 ); // adding because of the difference in signs
-      int8_t s32_minus_s21_sign = ( s32_is_negative ? -1 : 1 );
-      double s21_fraction_as_double = toDouble( s21 / s32_minus_s21 );
-      int8_t sign_fix = ( s21_is_negative ? -1 : 1 ) * s32_minus_s21_sign;
-      double return_value = ( ( ( x1 + x2 ) / 2 ) - ( ( ( x3 - x1 ) / 2 ) * sign_fix * s21_fraction_as_double ) );
+      const ScoreType s32_minus_s21 = ( s32 + s21 ); // adding because of the difference in signs
+      const int8_t s32_minus_s21_sign = ( s32_is_negative ? -1 : 1 );
+      const double s21_fraction_as_double = toDouble( s21 / s32_minus_s21 );
+      const int8_t sign_fix = ( s21_is_negative ? -1 : 1 ) * s32_minus_s21_sign;
+      const double return_value = ( ( ( x1 + x2 ) / 2 ) - ( ( ( x3 - x1 ) / 2 ) * sign_fix * s21_fraction_as_double ) );
+#ifndef NDEBUG
       if( x1 < x2 ) {
         assert( return_value >= ( ( x1 + x2 ) / 2 ) );
         assert( return_value <= ( ( x2 + x3 ) / 2 ) );
@@ -1451,6 +1471,7 @@ template <class ProfileType,
         assert( return_value <= ( ( x1 + x2 ) / 2 ) );
         assert( return_value >= ( ( x2 + x3 ) / 2 ) );
       }
+#endif // NDEBUG
       return( return_value );
     } // maximizeThreePointQuadratic(..)
 
@@ -4305,6 +4326,15 @@ template <class ProfileType,
                           );
                       } // End if m_row_i == last_row .. else ..
                     } // End if useRabinerScaling
+                    // TODO: REMOVE! ERE I AM! DEBUGGING! Dec 2012!!
+//                    if( isnan( ( *m_backward_rows_ptr )[ m_seq_i ][ 0 ][ Match ] ) ) {
+//                      cout << "CULPRIT is m_seq_i " << m_seq_i << endl;
+//                      cout << "That seq is " << m_sequences[ m_seq_i ] << endl;
+//                      cout << "m_row_i is " << m_row_i << endl;
+//                      cout << "( *m_profile )[ m_row_i ] is " << ( *m_profile )[ m_row_i ] << endl;
+//                      cout << "( *m_next_backward_rows_ptr )[ m_seq_i ] is " << ( *m_next_backward_rows_ptr )[ m_seq_i ] << endl;
+//                      exit( 1 );
+//                    }
                   } // End foreach m_seq_i
                 } // End if !backward_rows_are_already_rotated_and_calculated
 
@@ -8039,6 +8069,13 @@ template <class ProfileType,
                           sample_epsilons[ 1 ] = 0;
                           sample_epsilons[ 2 ] = 0;
                           epsilon_scale_value_scale_factor = m_trainingParameters.siegelEpsilonScaleFactor;
+                          // TODO: REMOVE!!! Paul Dec 2012!!
+//                          if( m_iteration > 0 && ( m_row_i == 54 ) ) {
+//                            m_baldi_be_verbose = true;
+//                            cout << "HEY" << endl;
+//                          } else {
+//                            m_baldi_be_verbose = false;
+//                          }
                           for( finding_the_peak_attempts = 0,
                                  epsilon = ( 1.0 / ( epsilon_scale_value_scale_factor * epsilon_scale_value_scale_factor * epsilon_scale_value_scale_factor ) ),
                                  epsilon_scale_value = epsilon_scale_value_scale_factor;
@@ -9551,6 +9588,11 @@ template <class ProfileType,
                                 );
                             } // End foreach seq_i, recompute the score.
                           } else { // End if use Baldi .. else use Baldi / Siegel ..
+                          // TODO: REMOVE!!! Paul Dec 2012!!
+                          //if( m_iteration > 0 ) {
+                          //  m_baldi_be_verbose = true;
+                          //  cout << "HEY HOWDY" << endl;
+                          //}
 
                             // Get three sample points for which the
                             // score of the third is less than that of
@@ -9565,7 +9607,7 @@ template <class ProfileType,
                             sample_epsilons[ 1 ] = 0;
                             sample_epsilons[ 2 ] = 0;
                             epsilon_scale_value_scale_factor = m_trainingParameters.siegelEpsilonScaleFactor;
-                            baldi_change_maxed_out_epsilon = 0; // TODO: REMOVE. TESTING.
+                            //baldi_change_maxed_out_epsilon = 0; // TODO: REMOVE. TESTING.
                             for( finding_the_peak_attempts = 0,
                                    epsilon = ( 1.0 / ( epsilon_scale_value_scale_factor * epsilon_scale_value_scale_factor * epsilon_scale_value_scale_factor ) ),
                                    epsilon_scale_value = epsilon_scale_value_scale_factor;
@@ -9608,15 +9650,15 @@ template <class ProfileType,
                               }
 
                               // Check to see if we've maxed out our ability to change the profile position.
-                              if( ( ( *m_profile )[ m_row_i - 1 ][ Emission::Match ].maximumValue() == 1 ) &&
-                                  // Also check that the change to that residue is to increase it...
-                                  ( m_baldi_position_boltzmann_gibbs_change[ Emission::Match ][ ( *m_profile )[ m_row_i - 1 ][ Emission::Match ].maximumValueType() ] > 0 )
-                              ) {
-                                baldi_change_maxed_out_epsilon = epsilon;
-                                if( m_baldi_be_verbose ) {
-                                  cout << "Baldi/Siegel change maxed out the profile position with prob 1 on " << ( *m_profile )[ m_row_i - 1 ][ Emission::Match ].maximumValueType() << "!" << endl;
-                                }
-                              }
+//                              if( ( ( *m_profile )[ m_row_i - 1 ][ Emission::Match ].maximumValue() == 1 ) &&
+//                                  // Also check that the change to that residue is to increase it...
+//                                  ( m_baldi_position_boltzmann_gibbs_change[ Emission::Match ][ ( *m_profile )[ m_row_i - 1 ][ Emission::Match ].maximumValueType() ] > 0 )
+//                              ) {
+//                                baldi_change_maxed_out_epsilon = epsilon;
+//                                if( m_baldi_be_verbose ) {
+//                                  cout << "Baldi/Siegel change maxed out the profile position with prob 1 on " << ( *m_profile )[ m_row_i - 1 ][ Emission::Match ].maximumValueType() << "!" << endl;
+//                                }
+//                              }
                               ( *m_profile )[ m_row_i - 1 ].normalize(
                                 m_trainingParameters.profileValueMinimum
                               );
@@ -9768,20 +9810,20 @@ template <class ProfileType,
                                       cout << "Couldn't get a score change.  ";
                                     }
                                     assert( epsilon_scale_value_scale_factor > 1 );
-                                    if( epsilon == baldi_change_maxed_out_epsilon ) {
-                                      // Erp! There's no change
-                                      // because we've hit a prob=1,
-                                      // maxing out what can be
-                                      // accomplished by going bigger.
-                                      // Try going < 1...
-                                      if( m_baldi_be_verbose ) {
-                                        cout << "Trying again with a flipped epsilon_scale_value." << endl;
-                                      }
-                                      epsilon_scale_value =
-                                        ( 1.0 / epsilon_scale_value_scale_factor );
-                                      // We've already calculated epsilon/2 (it's in sample_scores[ 0 ])
-                                      epsilon *= epsilon_scale_value;
-                                    } else {
+//                                    if( epsilon == baldi_change_maxed_out_epsilon ) {
+//                                      // Erp! There's no change
+//                                      // because we've hit a prob=1,
+//                                      // maxing out what can be
+//                                      // accomplished by going bigger.
+//                                      // Try going < 1...
+//                                      if( m_baldi_be_verbose ) {
+//                                        cout << "Maxed out epsilon.  Trying again with a flipped epsilon_scale_value." << endl;
+//                                      }
+//                                      epsilon_scale_value =
+//                                        ( 1.0 / epsilon_scale_value_scale_factor );
+//                                      // We've already calculated epsilon/2 (it's in sample_scores[ 0 ])
+//                                      epsilon *= epsilon_scale_value;
+//                                    } else {
                                       // Ok.  Try again with a bigger epsilon scale factor.
                                       epsilon_scale_value_scale_factor = 1 + ( ( epsilon_scale_value_scale_factor - 1 ) * 2 ); // TODO: DEHACKIFY MAGIC # 2.
                                       epsilon /= epsilon_scale_value;
@@ -9789,7 +9831,7 @@ template <class ProfileType,
                                       if( m_baldi_be_verbose ) {
                                         cout << "Trying again with epsilon_scale_value_scale_factor = " << epsilon_scale_value_scale_factor << endl;
                                       }
-                                    }
+//                                    }
                                   } else { // score_after_modification > sample_scores[ 0 ]
                                     // Score's going up.  Good!
                                     sample_scores[ 1 ] = score_after_modification;
@@ -9995,9 +10037,20 @@ template <class ProfileType,
                                 if( m_baldi_be_verbose ) {
                                   cout << "estimated peak epsilon is " << epsilon << endl;
                                 }
-                                  
                                 //if( isnan( epsilon ) ) { // Doesn't work!  Why?  Workaround:
-                                assert( !( epsilon != epsilon ) );
+                                  //                                assert( !( epsilon != epsilon ) );
+                                  // TODO: ?
+                                  if( epsilon != epsilon ) {
+                                    cout << "INTERNAL ERROR: epsilon is nan." << endl;
+                                      cout << "m_row_i is " << m_row_i << endl;
+                                      cout << "sample_epsilons[ sample_indices[ 0 ] ] is " << sample_epsilons[ sample_indices[ 0 ] ] << endl;
+                                      cout << "sample_scores[ sample_indices[ 0 ] ] is " << sample_scores[ sample_indices[ 0 ] ] << endl;
+                                      cout << "sample_epsilons[ sample_indices[ 1 ] ] is " << sample_epsilons[ sample_indices[ 1 ] ] << endl;
+                                      cout << "sample_scores[ sample_indices[ 1 ] ] is " << sample_scores[ sample_indices[ 1 ] ] << endl;
+                                      cout << "sample_epsilons[ sample_indices[ 2 ] ] is " << sample_epsilons[ sample_indices[ 2 ] ] << endl;
+                                      cout << "sample_scores[ sample_indices[ 2 ] ] is " << sample_scores[ sample_indices[ 2 ] ] << endl;
+                                      exit( 1 );
+                                  }
                                 
                                 m_baldi_position_boltzmann_gibbs_change.m_scalar /=
                                   epsilon;
