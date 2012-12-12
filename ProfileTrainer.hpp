@@ -9607,7 +9607,7 @@ template <class ProfileType,
                             sample_epsilons[ 1 ] = 0;
                             sample_epsilons[ 2 ] = 0;
                             epsilon_scale_value_scale_factor = m_trainingParameters.siegelEpsilonScaleFactor;
-                            //baldi_change_maxed_out_epsilon = 0; // TODO: REMOVE. TESTING.
+                            baldi_change_maxed_out_epsilon = 0; // TODO: REMOVE. TESTING.
                             for( finding_the_peak_attempts = 0,
                                    epsilon = ( 1.0 / ( epsilon_scale_value_scale_factor * epsilon_scale_value_scale_factor * epsilon_scale_value_scale_factor ) ),
                                    epsilon_scale_value = epsilon_scale_value_scale_factor;
@@ -9650,15 +9650,15 @@ template <class ProfileType,
                               }
 
                               // Check to see if we've maxed out our ability to change the profile position.
-//                              if( ( ( *m_profile )[ m_row_i - 1 ][ Emission::Match ].maximumValue() == 1 ) &&
-//                                  // Also check that the change to that residue is to increase it...
-//                                  ( m_baldi_position_boltzmann_gibbs_change[ Emission::Match ][ ( *m_profile )[ m_row_i - 1 ][ Emission::Match ].maximumValueType() ] > 0 )
-//                              ) {
-//                                baldi_change_maxed_out_epsilon = epsilon;
-//                                if( m_baldi_be_verbose ) {
-//                                  cout << "Baldi/Siegel change maxed out the profile position with prob 1 on " << ( *m_profile )[ m_row_i - 1 ][ Emission::Match ].maximumValueType() << "!" << endl;
-//                                }
-//                              }
+                              if( ( ( *m_profile )[ m_row_i - 1 ][ Emission::Match ].maximumValue() == 1 ) &&
+                                  // Also check that the change to that residue is to increase it...
+                                  ( m_baldi_position_boltzmann_gibbs_change[ Emission::Match ][ ( *m_profile )[ m_row_i - 1 ][ Emission::Match ].maximumValueType() ] > 0 )
+                              ) {
+                                baldi_change_maxed_out_epsilon = epsilon;
+                                if( m_baldi_be_verbose ) {
+                                  cout << "Baldi/Siegel change maxed out the profile position with prob 1 on " << ( *m_profile )[ m_row_i - 1 ][ Emission::Match ].maximumValueType() << "!" << endl;
+                                }
+                              }
                               ( *m_profile )[ m_row_i - 1 ].normalize(
                                 m_trainingParameters.profileValueMinimum
                               );
@@ -9810,20 +9810,21 @@ template <class ProfileType,
                                       cout << "Couldn't get a score change.  ";
                                     }
                                     assert( epsilon_scale_value_scale_factor > 1 );
-//                                    if( epsilon == baldi_change_maxed_out_epsilon ) {
-//                                      // Erp! There's no change
-//                                      // because we've hit a prob=1,
-//                                      // maxing out what can be
-//                                      // accomplished by going bigger.
-//                                      // Try going < 1...
-//                                      if( m_baldi_be_verbose ) {
-//                                        cout << "Maxed out epsilon.  Trying again with a flipped epsilon_scale_value." << endl;
-//                                      }
-//                                      epsilon_scale_value =
-//                                        ( 1.0 / epsilon_scale_value_scale_factor );
-//                                      // We've already calculated epsilon/2 (it's in sample_scores[ 0 ])
-//                                      epsilon *= epsilon_scale_value;
-//                                    } else {
+                                    if( epsilon == baldi_change_maxed_out_epsilon ) {
+                                      // Erp! There's no change
+                                      // because we've hit a prob=1,
+                                      // maxing out what can be
+                                      // accomplished by going bigger.
+                                      // Try going < 1...
+                                      // TODO: PUT BACK CONDITION PAUL Dec 2012
+                                      if( m_baldi_be_verbose ) {
+                                        cout << "Maxed out epsilon.  Trying again with a flipped epsilon_scale_value." << endl;
+                                      }
+                                      epsilon_scale_value =
+                                        ( 1.0 / epsilon_scale_value_scale_factor );
+                                      // We've already calculated epsilon/2 (it's in sample_scores[ 0 ])
+                                      epsilon *= epsilon_scale_value;
+                                    } else {
                                       // Ok.  Try again with a bigger epsilon scale factor.
                                       epsilon_scale_value_scale_factor = 1 + ( ( epsilon_scale_value_scale_factor - 1 ) * 2 ); // TODO: DEHACKIFY MAGIC # 2.
                                       epsilon /= epsilon_scale_value;
@@ -9831,7 +9832,7 @@ template <class ProfileType,
                                       if( m_baldi_be_verbose ) {
                                         cout << "Trying again with epsilon_scale_value_scale_factor = " << epsilon_scale_value_scale_factor << endl;
                                       }
-//                                    }
+                                    }
                                   } else { // score_after_modification > sample_scores[ 0 ]
                                     // Score's going up.  Good!
                                     sample_scores[ 1 ] = score_after_modification;
