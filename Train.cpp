@@ -42,7 +42,7 @@ char **g_argv;
 #endif // __HAVE_MUSCLE
 
 using namespace galosh;
-//namespace po = boost::program_options;
+namespace po = boost::program_options;
 
 int
 main ( int const argc, char ** argv )
@@ -160,7 +160,17 @@ main ( int const argc, char ** argv )
     po::options_description visible( "Basic options" );
     visible.add( generic ).add( config );
 
+    po::positional_options_description p;
+    p.add( "output_profile", 1 );
+    p.add( "fasta", 1 );
+        
+    po::variables_map vm;
+
+    store( po::command_line_parser( argc, argv ).options( cmdline_options ).positional( p ).run(), vm );
+    notify( vm );
+
 #define USAGE() " " << argv[ 0 ] << " [options] <output profile file> <fasta sequences file>"
+
         
 //    cout << "Usage: " << argv[ 0 ] << " <output profile file> <fasta sequences file>  [<input profile filename>|<initial profile length or 0 to use median or 1 to use max>|0 [<use Unconditional training>|0 [<lengthadjust insertion threshold or 0 to disable changes to the profile length>|.5 [<lengthadjust deletion threshold>|.5 [<lengthadjust threshold increment>|.0005 [<increase thresholds for length changes after iteration>|500 [<random seed>|0 [<even starting profile multiple (or startEven, if negative)>|0 ]...]" << endl;
 //    cout << "Example usage (typical; with DMS starting from median sequence length): " << argv[ 0 ] << " <output profile file> <fasta sequences file>" << endl;
@@ -168,20 +178,16 @@ main ( int const argc, char ** argv )
 //    cout << "Example usage with Unconditional training and DMS, starting from maximum sequence length: " << argv[ 0 ] << " <output profile file> <fasta sequences file> 1 1" << endl;
 //    cout << "Example usage with fixed profile length (no DMS): " << argv[ 0 ] << " <output profile file> <fasta sequences file> <initial profile length> 0 0" << endl;
 //    cout << "Example usage with a starting profile and a fixed profile length: " << argv[ 0 ] << " <output profile file> <fasta sequences file> <input profile filename> 0 0" << endl;
-    po::positional_options_description p;
-    p.add( "output_profile", 1 );
-    p.add( "fasta", 1 );
-        
-    po::variables_map vm;
-    store( po::command_line_parser( argc, argv ).options( cmdline_options ).positional( p ).run(), vm );
-    notify( vm );
+
 
     // Read in the config file.
     if( config_file.length() > 0 ) {
       ifstream ifs( config_file.c_str() );
       if( !ifs ) {
-        cout << "Can't open the config file named \"" << config_file << "\"\n";
-        return 0;
+        if(!vm["config"].defaulted()) {         //TAH 3/13 don't choke if config file was defaulted and is missing
+           cout << "Can't open the config file named \"" << config_file << "\"\n";
+           return 0;
+        } 
       } else {
         store( parse_config_file( ifs, config_file_options ), vm );
         notify( vm );
