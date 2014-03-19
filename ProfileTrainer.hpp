@@ -1,3 +1,33 @@
+/**
+ * \file ProfileTrainer.hpp
+ * \author D'Oleris Paul Thatcher Edlefsen   paul@galosh.org
+ * mods by Ted Holzman (2013)
+ *
+ *  \par Library:
+ *      galosh::profillic
+ *  \brief
+ *      Class definition for the Galosh Profile HMM parameter estimator class.
+ *
+ *    \copyright &copy; 2008, 2011, 2013 by Paul T. Edlefsen, Fred Hutchinson Cancer
+ *    Research Center.
+ *
+ *    \par License:
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ *
+ *    \par History
+ *    9/13 TAH Modifications for boost::program_options to initialize
+ *    parameters and centralize parameter/option manipulations
+ *****************************************************************************/
 /*---------------------------------------------------------------------------##
 ##  Library:
 ##      galosh::profillic
@@ -8,28 +38,6 @@
 ##  Description:
 ##      Class definition for the Galosh Profile HMM parameter estimator class.
 ##
-#******************************************************************************
-#*
-#*    This file is part of profillic, a suite of programs for estimating parameters of
-#*    Profile HMMs.  Please see the document CITING, which should have been
-#*    included with this file.  You may use at will, subject to the license
-#*    (Apache v2.0), but *please cite the relevant papers* in your documentation
-#*    and publications associated with uses of this library.  Thank you!
-#*
-#*    Copyright (C) 2008, 2011 by Paul T. Edlefsen, Fred Hutchinson Cancer
-#*    Research Center.
-#*
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *    
- *        http://www.apache.org/licenses/LICENSE-2.0
- *    
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
 #*****************************************************************************/
 
 #if     _MSC_VER > 1000
@@ -41,12 +49,17 @@
 
 #include "Profillic.hpp"
 
-#include "ProlificParameters.hpp"
-
 #include "Parameters.hpp"
+
 using galosh::Parameters;
 using galosh::DebugLevel;
 using galosh::VerbosityLevel;
+
+#include "DynamicProgramming.hpp"
+using galosh::DynamicProgramming;
+
+#include "ProlificParameters.hpp"
+using galosh::ProlificParameters;
 
 #include "Profile.hpp"
 using galosh::ProfileTreeRoot;
@@ -57,8 +70,6 @@ using galosh::Sequence;
 #include "Random.hpp"
 using galosh::Random;
 
-#include "DynamicProgramming.hpp"
-using galosh::DynamicProgramming;
 
 #include <string>
 using std::string;
@@ -79,10 +90,6 @@ using std::endl;
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 #include "CommandlineParameters.hpp"
-/// TAH 6/12 predefining DEFAULT_OPTIONS_DESCRIPION and DEFAULT_VARIABLES_MAP will
-/// replace those values in the CommandlineParameters macros
-#define DEFAULT_OPTIONS_DESCRIPTION m_profiletrainer_options
-#define DEFAULT_VARIABLES_MAP       m_parameters.m_options_map
 
 namespace galosh {
 
@@ -101,543 +108,43 @@ template <class ProfileType,
     class Parameters :
        public ProlificParameters<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::Parameters
     {
-// ERE I AM.  DOPTE.  TODO: Uncomment this and fix (and then comment out #include "ProfileTrainerOptions.hpp" from ProfuseTestOptions.hpp)
-//    public:
-//       po::options_description m_profiletrainer_options;
 
-      // Boost serialization
     private:
       typedef typename ProlificParameters<ResidueType, ProbabilityType,ScoreType,MatrixValueType>::Parameters dynamic_programming_parameters_t;
+
+      // Boost serialization
       friend class boost::serialization::access;
       template<class Archive>
       void serialize ( Archive & ar, const unsigned int /* file_version */ )
       {
         // save/load base class information
-//        ar & BOOST_SERIALIZATION_BASE_OBJECT_NVP( dynamic_programming_parameters_t );
+        ar & BOOST_SERIALIZATION_BASE_OBJECT_NVP( dynamic_programming_parameters_t );
+        /**
+         * ProfileTrainer Members to be serialized
+         *   TAH 9/13
+         **/
+        #undef GALOSH_DEF_OPT
+        #define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP) ar & BOOST_SERIALIZATION_NVP( NAME )
+        #include "ProfileTrainerOptions.hpp"  /// serialize ProfileTrainer parameters
 
-/**
- * \note This is a hack based on Paul's suggestion that the real use for the serialization
- * is for making a permanent file copy of parameter values, not for deserialization.
- * The "correct" way to do this would be to serialize (and potentially deserialize) the
- * the variables_map object (m_options_map) within the Parameters object.
- * Unfortunately, the variables_map object ultimately stores objects of type boost:any,
- * which are not serializable in the general case. However, since we tend to store only
- * doubles, unsigned ints and strings, it may be serializable for these particular cases.
- * That counts as a \todo for the current time.
- */
-
-// ERE I AM.  DOPTE.  TODO: Uncomment this and fix (and then comment out #include "ProfileTrainerOptions.hpp" from ProfuseTestOptions.hpp)
-//#define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP) \
-//        ar & boost::serialization::make_nvp(#NAME, ((galosh::Parameters)(*this)).m_options_map[#NAME].as<TYPE>())
-//        #include "ProfileTrainerOptions.hpp"
-//#undef GALOSH_DEF_OPT
-
-//        ar & BOOST_SERIALIZATION_NVP( trainProfileGlobals );
-//        ar & BOOST_SERIALIZATION_NVP( trainProfilePositions );
-//        ar & BOOST_SERIALIZATION_NVP( trainGlobalsFirst );
-//        ar & BOOST_SERIALIZATION_NVP( minIterations );
-//        ar & BOOST_SERIALIZATION_NVP( maxIterations );
-//        ar & BOOST_SERIALIZATION_NVP( maxPositionCycles );
-//        ar & BOOST_SERIALIZATION_NVP( maxPositionCycles_sequence_identifiers );
-//        ar & BOOST_SERIALIZATION_NVP( maxPositionCycles_globals );
-//        ar & BOOST_SERIALIZATION_NVP( maxBaumWelchInverseScalar );
-//        ar & BOOST_SERIALIZATION_NVP( minBaumWelchInverseScalar );
-//        ar & BOOST_SERIALIZATION_NVP( baumWelchInverseScalarIncrement );
-//        ar & BOOST_SERIALIZATION_NVP( maxBaumWelchInverseScalar_sequence_identifiers );
-//        ar & BOOST_SERIALIZATION_NVP( minBaumWelchInverseScalar_sequence_identifiers );
-//        ar & BOOST_SERIALIZATION_NVP( baumWelchInverseScalarIncrement_sequence_identifiers );
-//        ar & BOOST_SERIALIZATION_NVP( maxBaumWelchInverseScalar_globals );
-//        ar & BOOST_SERIALIZATION_NVP( minBaumWelchInverseScalar_globals );
-//        ar & BOOST_SERIALIZATION_NVP( baumWelchInverseScalarIncrement_globals );
-//        ar & BOOST_SERIALIZATION_NVP( scorePercentChangeMinimum_iteration );
-//        ar & BOOST_SERIALIZATION_NVP( scorePercentChangeMinimum_position_cycle );
-//        ar & BOOST_SERIALIZATION_NVP( euclideanDistanceMinimum_iteration );
-//        ar & BOOST_SERIALIZATION_NVP( euclideanDistanceMinimum_position_cycle );
-//        ar & BOOST_SERIALIZATION_NVP( alwaysAccept );
-//        ar & BOOST_SERIALIZATION_NVP( useAlignmentProfiles );
-//        ar & BOOST_SERIALIZATION_NVP( proposeProfileLengthChanges );
-//        ar & BOOST_SERIALIZATION_NVP( proposeDeletingThreshold );
-//        ar & BOOST_SERIALIZATION_NVP( proposeInsertingThreshold );
-//        ar & BOOST_SERIALIZATION_NVP( proposeDeletingThreshold_increment );
-//        ar & BOOST_SERIALIZATION_NVP( proposeInsertingThreshold_increment );
-//        ar & BOOST_SERIALIZATION_NVP( proposeInsertingPreAlignThreshold );
-//        ar & BOOST_SERIALIZATION_NVP( proposeInsertingPostAlignThreshold );
-//        ar & BOOST_SERIALIZATION_NVP( proposeInsertingOccupancyThreshold );
-//        ar & BOOST_SERIALIZATION_NVP( useSensitiveThresholding );
-//        ar & BOOST_SERIALIZATION_NVP( increaseThresholdsForLengthChanges_startIteration );
-//        ar & BOOST_SERIALIZATION_NVP( increaseThresholdsForLengthChanges_minIncrement );
-//        ar & BOOST_SERIALIZATION_NVP( alwaysAccept_disallowThreshold_profileDistance_iteration );
-//        ar & BOOST_SERIALIZATION_NVP( numIterationsBetweenLengthChanges );
-//        ar & BOOST_SERIALIZATION_NVP( useUnconditionalBaumWelch );
-//        ar & BOOST_SERIALIZATION_NVP( baldiLearningRate );
-//        ar & BOOST_SERIALIZATION_NVP( baldiTemperature );
-//        ar & BOOST_SERIALIZATION_NVP( profileValueMinimum );
-//        ar & BOOST_SERIALIZATION_NVP( usePriors );
-//        ar & BOOST_SERIALIZATION_NVP( positionShouldBeTrained );
-//        ar & BOOST_SERIALIZATION_NVP( siegelMaxFindingThePeakAttempts_positions );
-//        ar & BOOST_SERIALIZATION_NVP( baldiHybrid );
-//        ar & BOOST_SERIALIZATION_NVP( siegelEpsilonScaleFactor );
-//        ar & BOOST_SERIALIZATION_NVP( unconditionalIsolatesGlobals );
-//        ar & BOOST_SERIALIZATION_NVP( siegelMaxRefiningThePeakSteps_positions );
-//        ar & BOOST_SERIALIZATION_NVP( siegelRefiningThePeakStepsConvergenceThreshold );
-//        ar & BOOST_SERIALIZATION_NVP( siegelMaxFindingTheGradientAttempts_positions );
-//        ar & BOOST_SERIALIZATION_NVP( siegelMinEpsilon );
       } // serialize( Archive &, const unsigned int )
 
     public:
-  
-      /// PARAMETERS
-      /**
-       * Should we train the global parameters at all, or just do positions?
-       * If true, train the globals.  If false, don't train the globals.
-       */
-      bool trainProfileGlobals;
-  #define DEFAULT_trainProfileGlobals true
-  
-      /**
-       * Should we train the position parameters at all?  If true, train the
-       * position-specific parameters.  If false, don't train them.
-       */
-      bool trainProfilePositions;
-  #define DEFAULT_trainProfilePositions true
-  
-      /**
-       * Should we start with the global parameters, then do positions?  If
-       * true, start with globals.  If false, start with position params,
-       * then do globals.
-       */
-      bool trainGlobalsFirst;
-  #define DEFAULT_trainGlobalsFirst false
-  
-      /**
-       * How many times at minimum should we iterate between position cycles and
-       * global training steps before we end the training process ( one
-       * iteration includes both positions and globals )?
-       * Note that this must be at least 1.
-       */
-      uint32_t minIterations; // at least 1
-  #define DEFAULT_minIterations 1
-  
-      /**
-       * How many times at maximum should we iterate between position cycles and
-       * global training steps before we end the training process ( one
-       * iteration includes both positions and globals )?
-       * Note that this must be at least 1.
-       */
-      uint32_t maxIterations; // at least 1
-  #define DEFAULT_maxIterations 1000
-  
-      /**
-       * How many times should we cycle through the training steps before,
-       * despite continuing improvement, we move on to refining indels?
-       */
-      uint32_t maxPositionCycles;
-  #define DEFAULT_maxPositionCycles 1
+
+      /// PARAMETER definitions are now found in ProfileTrainerOptions.hpp
+      /// however pointer types cannot be initialized from the command line.
+      /// \todo They probably don't belong in "parameters".  Maybe members
+      /// of surrounding class?
 
       /**
-       * How many times should we cycle through the training steps before,
-       * despite continuing improvement, we move on to refining indels?
-       *
-       * This is for the sequence identifier params training step.
-       */
-      uint32_t maxPositionCycles_sequence_identifiers;
-  #define DEFAULT_maxPositionCycles_sequence_identifiers 4
+       * Define ProfileTrainer::Parameters "members".  These are tightly tied to the options.
+       *    TAH 9/13
+       **/
+      #undef GALOSH_DEF_OPT
+      #define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP) TYPE NAME
+      #include "ProfileTrainerOptions.hpp"  /// declare Parameters members specific to ProfileTrainer
 
-      /**
-       * How many times should we cycle through the training steps before,
-       * despite continuing improvement, we move on to refining indels?
-       *
-       * This is for the global params training step.
-       */
-      uint32_t maxPositionCycles_globals;
-  #define DEFAULT_maxPositionCycles_globals 4
-
-      /**
-       * Set this to 0 for straight-up BW/CBW.  Non-zero values allow
-       * intermediate step sizes in the direction of the BW/CBW update.
-       * Sometimes we have to reject the conditional BW updates because the
-       * score would go down.  In such cases we can try again at various
-       * intermediate steps.  We do this by adding some fraction of the updated
-       * position values to the original values.  When this fraction is 1, for
-       * instance, the old and new values will be averaged.  When the fraction
-       * is not 1, it will be a weighted average.  The value of this
-       * parameter is the largest denomenator of the weight on the new values.
-       * We try denomenators from
-       * minBaumWelchInverseScalar..maxBaumWelchInverseScalar, by
-       * baumWelchInverseScalarIncrement.
-       */
-      float maxBaumWelchInverseScalar;
-  #define DEFAULT_maxBaumWelchInverseScalar 0.0F
-
-      /**
-       * See maxBaumWelchInverseScalar.
-       */
-      float minBaumWelchInverseScalar;
-  #define DEFAULT_minBaumWelchInverseScalar 0.0F
-
-      /**
-       * See maxBaumWelchInverseScalar.
-       */
-      float baumWelchInverseScalarIncrement;
-  #define DEFAULT_baumWelchInverseScalarIncrement 4.0F
-
-      /**
-       * Sometimes we have to reject the conditional BW updates because the
-       * score would go down.  In such cases we try again at various
-       * intermediate steps.  We do this by adding some fraction of the updated
-       * position values to the original values.  When this fraction is 1, for
-       * instance, the old and new values will be averaged.  When the fraction
-       * is less than 1, it will be a weighted average.  The value of this
-       * parameter is the largest denomenator of the weight on the new values.
-       * We try denomenators from
-       * minBaumWelchInverseScalar..maxBaumWelchInverseScalar, by
-       * baumWelchInverseScalarIncrement.  If minBaumWelchInverseScalar is
-       * greater than 0, we don't even try the usual direct update.
-       *
-       * This is for the sequence identifier params training step.
-       */
-      float maxBaumWelchInverseScalar_sequence_identifiers;
-  #define DEFAULT_maxBaumWelchInverseScalar_sequence_identifiers 40.0F
-
-      /**
-       * See maxBaumWelchInverseScalar_sequence_identifiers.
-       *
-       * This is for the sequence identifier params training step.
-       */
-      float minBaumWelchInverseScalar_sequence_identifiers;
-  #define DEFAULT_minBaumWelchInverseScalar_sequence_identifiers 0.0F
-
-      /**
-       * See maxBaumWelchInverseScalar_sequence_identifiers.
-       *
-       * This is for the sequence identifier params training step.
-       */
-      float baumWelchInverseScalarIncrement_sequence_identifiers;
-  #define DEFAULT_baumWelchInverseScalarIncrement_sequence_identifiers 10.0F
-
-      /**
-       * Sometimes we have to reject the conditional BW updates because the
-       * score would go down.  In such cases we try again at various
-       * intermediate steps.  We do this by adding some fraction of the updated
-       * position values to the original values.  When this fraction is 1, for
-       * instance, the old and new values will be averaged.  When the fraction
-       * is less than 1, it will be a weighted average.  The value of this
-       * parameter is the largest denomenator of the weight on the new values.
-       * We try denomenators from
-       * minBaumWelchInverseScalar..maxBaumWelchInverseScalar, by
-       * baumWelchInverseScalarIncrement.  If minBaumWelchInverseScalar is
-       * greater than 0, we don't even try the usual direct update.
-       *
-       * This is for the global params training step.
-       */
-      float maxBaumWelchInverseScalar_globals;
-  #define DEFAULT_maxBaumWelchInverseScalar_globals 100.0F
-
-      /**
-       * See maxBaumWelchInverseScalar_globals.
-       *
-       * This is for the global params training step.
-       */
-      float minBaumWelchInverseScalar_globals;
-  #define DEFAULT_minBaumWelchInverseScalar_globals 0.0F
-
-      /**
-       * See maxBaumWelchInverseScalar_globals.
-       *
-       * This is for the global params training step.
-       */
-      float baumWelchInverseScalarIncrement_globals;
-  #define DEFAULT_baumWelchInverseScalarIncrement_globals 20.0F
-
-      /**
-       * How much (percentage) change in forward score after an iteration is
-       * close enough to 0 that we should stop training?
-       */
-      float scorePercentChangeMinimum_iteration;
-  #define DEFAULT_scorePercentChangeMinimum_iteration 1
-    
-      /**
-       * How much (percentage) change in forward score in a position cycle is
-       * close enough to 0 that we should move on to refining indels?
-       */
-      float scorePercentChangeMinimum_position_cycle;
-  #define DEFAULT_scorePercentChangeMinimum_position_cycle 1
-
-      /**
-       * What average squared euclidean distance (averaged over free
-       * parameters) is close enough to 0 that we should stop training?
-       */
-      float euclideanDistanceMinimum_iteration;
-  #define DEFAULT_euclideanDistanceMinimum_iteration 1E-5
-
-      /**
-       * What average squared euclidean distance (averaged over free
-       * parameters) is close enough to 0 that we should move on to refining
-       * indels?
-       */
-      float euclideanDistanceMinimum_position_cycle;
-  #define DEFAULT_euclideanDistanceMinimum_position_cycle 1E-5
-
-      /**
-       * Always accept the changes to the profile, even if the score goes down?
-       * Theoretically, the BW update should always lead to an improvement, but
-       * because of numerical instability (or strong priors), sometimes it
-       * won't.
-       *
-       * See alwaysAccept_disallowThreshold_profileDistance_iteration.
-       */
-      bool alwaysAccept;
-  #define DEFAULT_alwaysAccept true
-
-      /**
-       * Calculate and use Alignment Profiles for the positions BW update?  If
-       * true, will do so; if false, will use
-       * calculatePositionSpecificSequenceScoreCoefficients(..) and
-       * updatePositionEntenteForSequence(..) instead.
-       *
-       * Note that alignment profiles will be calculated if
-       * proposeProfileLengthChanges is true, regardless of the value of this
-       * parameter.  They will only be used for the BW update, though, if this
-       * is true.
-       */
-      bool useAlignmentProfiles;
-  #define DEFAULT_useAlignmentProfiles true
-
-      /**
-       * Resize the profile while training it?  If this is true, alignment
-       * profiles will be calculated and used to delete or insert positions.
-       * 'propose' is a bit of a misnomer: if the rate of deletion or insertion
-       * exceeds the corresponding threshold, that position will be deleted or
-       * inserted (unless a cycle has been detected: there's some fancy
-       * footwork involved in preventing infinite loops here: see
-       * proposeInsertingThreshold_increment).
-       *
-       * See also proposeDeletingThreshold, proposeInsertingThreshold, and
-       * numIterationsBetweenLengthChanges.
-       */
-      bool proposeProfileLengthChanges;
-  #define DEFAULT_proposeProfileLengthChanges false
-
-      /**
-       * If the alignment profile (for a particular sequence) at a position
-       * position has higher that this threshold of deletions, then the
-       * sequence will be counted towards the total number of sequences with
-       * "deletes" at that position -- and if the fraction of sequences exceeds
-       * one minus the proposeInsertingOccupancyThreshold, the position will be
-       * deleted (if proposeProfileLengthChanges is true).
-       *
-       * See proposeProfileLengthChanges, proposeInsertingOccupancyThreshold.
-       */
-      double proposeDeletingThreshold;
-#define DEFAULT_proposeDeletingThreshold .1
-
-      /**
-       * If the alignment profile (for a particular sequence) at an internal
-       * position has higher that this threshold of insertions, then
-       * the sequence will be counted towards the total number of sequences
-       * with "inserts" at that position -- and if the fraction of sequences
-       * exceeds the proposeInsertingOccupancyThreshold, a new position will be
-       * inserted (if proposeProfileLengthChanges is true).
-       *
-       * See proposeProfileLengthChanges, proposeInsertingPreAlignThreshold,
-       * proposeInsertingPostAlignThreshold, proposeInsertingOccupancyThreshold.
-       */
-      double proposeInsertingThreshold;
-#define DEFAULT_proposeInsertingThreshold .1
-
-      /**
-       * If we detect a cycle, we increment the proposeDeletingThreshold by
-       * this amount.  We also increment it by this amount if it gets to the
-       * minimum or maximum profile length (the minimum is 2, the maximum is
-       * the longest sequence being used to train the profile).  See also
-       * proposeInsertingThreshold_increment.  If useSensitiveThresholding is
-       * true, thresholds will instead be incremented to the least amount that
-       * would have made a difference in which positions were inserted or
-       * deleted -- and this value will be used added as a little extra boost.
-       *
-       * See proposeProfileLengthChanges, useSensitiveThresholding.
-       */
-      double proposeDeletingThreshold_increment;
-#define DEFAULT_proposeDeletingThreshold_increment .025
-
-      /**
-       * If we detect a cycle, we increment the proposeInsertingThresholds by
-       * this amount.  We also increment them by this amount if the length gets
-       * to the minimum or maximum profile length (the minimum is 2, the
-       * maximum is the longest sequence being used to train the profile).  See
-       * also proposeDeletingThreshold_increment.  If useSensitiveThresholding
-       * is true, thresholds will instead be incremented to the least amount
-       * that would have made a difference in which positions were inserted or
-       * deleted -- and this value will be used added as a little extra boost.
-       *
-       * See proposeProfileLengthChanges, useSensitiveThresholding.
-       */
-      double proposeInsertingThreshold_increment;
-#define DEFAULT_proposeInsertingThreshold_increment .025
-
-      /**
-       * If the alignment profile (for a particular sequence) for the
-       * first/pre-align position has higher that this threshold of pre-align
-       * insertions, then the sequence will be counted towards the total number
-       * of sequences with "inserts" at that position -- and if the fraction of
-       * sequences exceeds the proposeInsertingOccupancyThreshold, a new
-       * position will be inserted (if proposeProfileLengthChanges is true).
-       *
-       * See proposeProfileLengthChanges, proposeInsertingThreshold,
-       * proposeInsertingPostAlignThreshold, proposeInsertingOccupancyThreshold.
-       */
-      double proposeInsertingPreAlignThreshold;
-#define DEFAULT_proposeInsertingPreAlignThreshold .1
-
-      /**
-       * If the alignment profile (for a particular sequence) at the last
-       * position has higher that this threshold of post-align insertions, then
-       * the sequence will be counted towards the total number of sequences
-       * with "inserts" at that position -- and if the fraction of sequences
-       * exceeds the proposeInsertingOccupancyThreshold, a new position will be
-       * inserted (if proposeProfileLengthChanges is true).
-       *
-       * See proposeProfileLengthChanges, proposeInsertingThreshold, and
-       * proposeInsertingPreAlignThreshold, proposeInsertingOccupancyThreshold.
-       */
-      double proposeInsertingPostAlignThreshold;
-#define DEFAULT_proposeInsertingPostAlignThreshold .1
-
-      /**
-       * If the fraction of sequences for which the insertion fraction exceeds
-       * the relevant threshold is greater than
-       * proposeInsertingOccupancyThreshold (for a particular position), then a
-       * new position will be inserted.  If the fraction of sequences for which
-       * the deletion fraction exceeds the proposeDeletingThreshold is greater
-       * than ( 1.0 - proposeInsertingOccupancyThreshold ), then the position
-       * will be deleted (if proposeProfileLengthChanges is true).
-       *
-       * See proposeProfileLengthChanges, proposeInsertingThreshold, and
-       * proposeInsertingPreAlignThreshold, proposeInsertingPostAlignThreshold,
-       * and proposeDeletingThreshold.
-       */
-      double proposeInsertingOccupancyThreshold;
-#define DEFAULT_proposeInsertingOccupancyThreshold .5
-
-      /**
-       * If true, thresholds will not be incremented until the end of a cycle,
-       * and then will be incremented to the least value that would have made a
-       * difference in the positions being inserted or deleted.  Note that the
-       * threshold increment will also be added to this calculated min value,
-       * so when useSensitiveThresholding is true those increments should be
-       * small (they provide a bit of a bump to offset the fact that after the
-       * global parameters update, the indel fractions tend to increase a
-       * touch).
-       */
-      bool useSensitiveThresholding;
-#define DEFAULT_useSensitiveThresholding true
-
-      /**
-       * If things are taking too long, it might be because there's an
-       * undetected cycle.  At
-       * increaseThresholdsForLengthChanges_startIteration, we start treating
-       * all length changes like they're part of a cycle, to force convergence.
-       *
-       * See increaseThresholdsForLengthChanges_minIncrement.
-       */
-      uint32_t increaseThresholdsForLengthChanges_startIteration;
-#define DEFAULT_increaseThresholdsForLengthChanges_startIteration 500
-
-      /**
-       * If things are taking too long, it might be because there's an
-       * undetected cycle.  At
-       * increaseThresholdsForLengthChanges_startIteration, we start treating
-       * all length changes like they're part of a cycle, to force convergence.
-       * If the threshold increments are very small, this might not help much,
-       * so we also enforce a minimum increment.
-       *
-       * See increaseThresholdsForLengthChanges_startIteration.
-       */
-      float increaseThresholdsForLengthChanges_minIncrement;
-#define DEFAULT_increaseThresholdsForLengthChanges_minIncrement 1E-4
-
-      /**
-       * When the profile isn't changing much, numerical errors dominate.  The
-       * BW and CBW algs are theoretically guaranteed to only improve the
-       * score, but these numerical errors can cause the score to diminish a
-       * bit, and convergence to take a very long time.  When the profile
-       * distance (in an iteration) is less than
-       * alwaysAccept_disallowThreshold_profileDistance_iteration, we turn
-       * alwaysAccept off, so the score never goes down and the algorithm
-       * converges.
-       *
-       * See alwaysAccept.
-       */
-      float alwaysAccept_disallowThreshold_profileDistance_iteration;
-#define DEFAULT_alwaysAccept_disallowThreshold_profileDistance_iteration 1E-5
-
-      /**
-       * if proposeProfileLengthChanges is true, this number of iterations must
-       * pass between proposals.  It may be 0.  Regardless of its value, at
-       * least 1 iteration must pass at the very beginning of training before
-       * length changes are allowed.
-       */
-      uint32_t numIterationsBetweenLengthChanges;
-#define DEFAULT_numIterationsBetweenLengthChanges 0
-
-      /**
-       * Use the usual kind of Baum-Welch, in which parameter updates are
-       * simultaneous?
-       * If true, updates all parameters at once via Baum-Welch.
-       * Otherwise, performs a conditional optimization.
-       */
-      bool useUnconditionalBaumWelch;
-  #define DEFAULT_useUnconditionalBaumWelch false
-    
-      /**
-       * Use Baldi's style of gradient ascent (GEM vs EM)?  If so, with what
-       * learning rate?
-       *
-       * If non-zero, Baldi's "Smooth on-line learning algorithm" will be used,
-       * with the given learning rate.
-       *
-       * @see baldiTemperature
-       */
-      double baldiLearningRate;
-  #define DEFAULT_baldiLearningRate 0
-    
-      /**
-       * If we are using Baldi's style of gradient ascent (GEM vs EM), use this
-       * temperature.
-       *
-       * @see baldiLearningRate
-       */
-      double baldiTemperature;
-  #define DEFAULT_baldiTemperature 1.0
-    
-      /**
-       * Minimum profile distribution value.  Applies to everything except the
-       * E (End) state.  Given as a double, despite the Profile ProbabilityType.
-       */
-      double profileValueMinimum;
-  #define DEFAULT_profileValueMinimum 1E-5
-
-      /**
-       * Use priors?  If true, m_matchEmissionPrior and m_globalsPrior will be
-       * defined and used.  See also matchEmissionPrior and globalsPrior.
-       */
-      bool usePriors;
-  #define DEFAULT_usePriors true
-
-    /**
-     * When usePriors is true, and when this is non-null, we use this for the
-     * Match-state emission prior.  If this is null, a simple Laplace prior
-     * will be used.
-     */
-    typename DynamicProgramming<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::template DirichletMixtureMatchEmissionPrior<float> * matchEmissionPrior;
-
-    /**
-     * When usePriors is true, and when this is non-null, we use this for the
-     * priors for everything except the match-state emissions.  If this is
-     * null, a simple Laplace prior will be used.
-     */
-    typename DynamicProgramming<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::template DirichletMixtureGlobalPrior<float> * globalPrior;
-
+      /* These are not "options" as they cannot be set from the command line */
       /**
        * It is possible to turn off training on a position-by-position basis.
        * If this vector is non-null, it must be of the same length as the
@@ -645,64 +152,30 @@ template <class ProfileType,
        * the i^th profile position should be trained (true means yes, train
        * that position).
        */
-      vector<bool> * positionShouldBeTrained;
-  #define DEFAULT_positionShouldBeTrained NULL
+      myVector<bool> positionShouldBeTrained;
 
       /**
-       * Set this to 0 for straight-up Baldi.  If non-zero, use Baldi / Siegel and quit trying to find a peak after this many attempts.  Note this only applies when baldiLearningRate > 0 and when ALLOW_BOLTZMANN_GIBBS is #defined.
+       * When usePriors is true, and when this is non-null, we use this for the
+       * Match-state emission prior.  If this is null, a simple Laplace prior
+       * will be used.
        */
-      uint32_t siegelMaxFindingThePeakAttempts_positions;
-#define DEFAULT_siegelMaxFindingThePeakAttempts_positions 1000
+      typename DynamicProgramming<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::template DirichletMixtureMatchEmissionPrior<float> * matchEmissionPrior;
 
       /**
-       * Set to true to try both BW / CBW *and* Baldi/Siegel, then take whichever move is best.
+       * When usePriors is true, and when this is non-null, we use this for the
+       * priors for everything except the match-state emissions.  If this is
+       * null, a simple Laplace prior will be used.
        */
-      bool baldiHybrid;
-#define DEFAULT_baldiHybrid false
+      typename DynamicProgramming<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::template DirichletMixtureGlobalPrior<float> * globalPrior;
 
-      /**
-       * Length of steps for Baldi / Siegel (this is multiplied into the learning rate from eqn 3 from the Baldi paper to explore trapping a peak).  Note steps down will use the inverse of this.  This must be strictly > 1.
-       */
-      double siegelEpsilonScaleFactor;
-#define DEFAULT_siegelEpsilonScaleFactor 2.0
+      Parameters();
 
-      /**
-       * If doing Unconditional BW or Unconditional Baldi, should we still isolate updates to the globals from updates to the position params?  This is a hybrid approach, conditional but not per-position.
-       */
-      bool unconditionalIsolatesGlobals;
-#define DEFAULT_unconditionalIsolatesGlobals false
-
-      /**
-       * This should generally be set to a fairly high value; it determines the number of attempts to maximize the quadratic after trapping a peak in the Baldi / Siegel Newton-Raphson part.  The more relevant parameter to adjust is siegelRefiningThePeakStepsConvergenceThreshold.
-       */
-      uint32_t siegelMaxRefiningThePeakSteps_positions;
-#define DEFAULT_siegelMaxRefiningThePeakSteps_positions 1000
-
-      /**
-       * When (the larger minus the smaller, divided by the smaller) of the last-best and the current-best score is less than this threshold, declare the Baldi / Siegel hillclimb done.
-       */
-      ScoreType siegelRefiningThePeakStepsConvergenceThreshold;
-#define DEFAULT_siegelRefiningThePeakStepsConvergenceThreshold 1E-5
-
-      /**
-       * If the score doesn't change after this number of attempts to multiply the gradient by an epsilon, give up.  Note that this must be > 0. Note this only applies when baldiLearningRate > 0, when siegelMaxFindingThePeakAttempts_positions > 0, and when ALLOW_BOLTZMANN_GIBBS is #defined.
-       */
-      uint32_t siegelMaxFindingTheGradientAttempts_positions;
-#define DEFAULT_siegelMaxFindingTheGradientAttempts_positions 10
-
-      /**
-       * Give up trapping the peak if the epsilon value we're multiplying by the gradient gets below this value (we multiply it by siegelEpsilonScaleFactor or 1/SiegelEpsilonScaleFactor as we go..).  Note that this must be > 0. Note this only applies when baldiLearningRate > 0, when siegelMaxFindingThePeakAttempts_positions > 0, and when ALLOW_BOLTZMANN_GIBBS is #defined.
-       */
-      double siegelMinEpsilon;
-#define DEFAULT_siegelMinEpsilon 1E-5
-
-      Parameters ();
       virtual ~Parameters () {};
-    
+
       // Copy constructor
       template <class AnyParameters>
       Parameters ( const AnyParameters & copy_from );
-    
+
       // Copy constructor/operator
       template <class AnyParameters>
       Parameters & operator= (
@@ -723,14 +196,14 @@ template <class ProfileType,
 
       virtual void
       copyFrom ( const Parameters & copy_from );
-    
+
       virtual void
       resetToDefaults ();
 
       template<class CharT, class Traits>
-      friend std::basic_ostream<CharT,Traits>&
+      friend std::ostream&
       operator<< (
-        std::basic_ostream<CharT,Traits>& os,
+        std::ostream& os,
         Parameters const& parameters
       )
       {
@@ -741,8 +214,8 @@ template <class ProfileType,
 
       template<class CharT, class Traits>
       void
-      writeParameters ( 
-        std::basic_ostream<CharT,Traits>& os
+      writeParameters (
+        std::ostream& os
       ) const;
 
     }; // End inner class Parameters
@@ -753,8 +226,8 @@ template <class ProfileType,
     {
       typedef typename ProlificParameters<ResidueType, ProbabilityType,ScoreType,MatrixValueType>::template ParametersModifierTemplate<ParametersType> base_parameters_modifier_t;
 
-      // Boost serialization
     private:
+      // Boost serialization
       friend class boost::serialization::access;
       template<class Archive>
       void serialize ( Archive & ar, const unsigned int /* file_version */ )
@@ -762,168 +235,31 @@ template <class ProfileType,
         // save/load base class information.  This will serialize the
         // parameters too.
         ar & BOOST_SERIALIZATION_BASE_OBJECT_NVP( base_parameters_modifier_t );
+        // Serialize the ProfileTrainer::ParameterModifierTemplate specific isModified_<member>s TAH 9/13
+        #undef GALOSH_DEF_OPT
+        #define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP) ar & BOOST_SERIALIZATION_NVP(isModified_##NAME)
+        #include "ProfileTrainerOptions.hpp"  //archive ProfileTrainer::ParameterModifierTemplate isModified_<member>s
 
-        // Serialize the new isModified_ stuff
-        ar & BOOST_SERIALIZATION_NVP( isModified_trainProfileGlobals );
-        ar & BOOST_SERIALIZATION_NVP( isModified_trainProfilePositions );
-        ar & BOOST_SERIALIZATION_NVP( isModified_trainGlobalsFirst );
-        ar & BOOST_SERIALIZATION_NVP( isModified_minIterations );
-        ar & BOOST_SERIALIZATION_NVP( isModified_maxIterations );
-        ar & BOOST_SERIALIZATION_NVP( isModified_maxPositionCycles );
-        ar & BOOST_SERIALIZATION_NVP( isModified_maxPositionCycles_sequence_identifiers );
-        ar & BOOST_SERIALIZATION_NVP( isModified_maxPositionCycles_globals );
-        ar & BOOST_SERIALIZATION_NVP( isModified_maxBaumWelchInverseScalar );
-        ar & BOOST_SERIALIZATION_NVP( isModified_minBaumWelchInverseScalar );
-        ar & BOOST_SERIALIZATION_NVP( isModified_baumWelchInverseScalarIncrement );
-        ar & BOOST_SERIALIZATION_NVP( isModified_maxBaumWelchInverseScalar_sequence_identifiers );
-        ar & BOOST_SERIALIZATION_NVP( isModified_minBaumWelchInverseScalar_sequence_identifiers );
-        ar & BOOST_SERIALIZATION_NVP( isModified_baumWelchInverseScalarIncrement_sequence_identifiers );
-        ar & BOOST_SERIALIZATION_NVP( isModified_maxBaumWelchInverseScalar_globals );
-        ar & BOOST_SERIALIZATION_NVP( isModified_minBaumWelchInverseScalar_globals );
-        ar & BOOST_SERIALIZATION_NVP( isModified_baumWelchInverseScalarIncrement_globals );
-        ar & BOOST_SERIALIZATION_NVP( isModified_scorePercentChangeMinimum_iteration );
-        ar & BOOST_SERIALIZATION_NVP( isModified_scorePercentChangeMinimum_position_cycle );
-        ar & BOOST_SERIALIZATION_NVP( isModified_euclideanDistanceMinimum_iteration );
-        ar & BOOST_SERIALIZATION_NVP( isModified_euclideanDistanceMinimum_position_cycle );
-        ar & BOOST_SERIALIZATION_NVP( isModified_alwaysAccept );
-        ar & BOOST_SERIALIZATION_NVP( isModified_useAlignmentProfiles );
-        ar & BOOST_SERIALIZATION_NVP( isModified_proposeProfileLengthChanges );
-        ar & BOOST_SERIALIZATION_NVP( isModified_proposeDeletingThreshold );
-        ar & BOOST_SERIALIZATION_NVP( isModified_proposeInsertingThreshold );
-        ar & BOOST_SERIALIZATION_NVP( isModified_proposeDeletingThreshold_increment );
-        ar & BOOST_SERIALIZATION_NVP( isModified_proposeInsertingThreshold_increment );
-        ar & BOOST_SERIALIZATION_NVP( isModified_proposeInsertingPreAlignThreshold );
-        ar & BOOST_SERIALIZATION_NVP( isModified_proposeInsertingPostAlignThreshold );
-        ar & BOOST_SERIALIZATION_NVP( isModified_proposeInsertingOccupancyThreshold );
-        ar & BOOST_SERIALIZATION_NVP( isModified_useSensitiveThresholding );
-        ar & BOOST_SERIALIZATION_NVP( isModified_increaseThresholdsForLengthChanges_startIteration );
-        ar & BOOST_SERIALIZATION_NVP( isModified_increaseThresholdsForLengthChanges_minIncrement );
-        ar & BOOST_SERIALIZATION_NVP( isModified_alwaysAccept_disallowThreshold_profileDistance_iteration );
-        ar & BOOST_SERIALIZATION_NVP( isModified_numIterationsBetweenLengthChanges );
-        ar & BOOST_SERIALIZATION_NVP( isModified_useUnconditionalBaumWelch );
-        ar & BOOST_SERIALIZATION_NVP( isModified_baldiLearningRate );
-        ar & BOOST_SERIALIZATION_NVP( isModified_baldiTemperature );
-        ar & BOOST_SERIALIZATION_NVP( isModified_profileValueMinimum );
-        ar & BOOST_SERIALIZATION_NVP( isModified_usePriors );
-        ar & BOOST_SERIALIZATION_NVP( isModified_positionShouldBeTrained );
-        ar & BOOST_SERIALIZATION_NVP( isModified_siegelMaxFindingThePeakAttempts_positions );
-        ar & BOOST_SERIALIZATION_NVP( isModified_baldiHybrid );
-        ar & BOOST_SERIALIZATION_NVP( isModified_siegelEpsilonScaleFactor );
-        ar & BOOST_SERIALIZATION_NVP( isModified_unconditionalIsolatesGlobals );
-        ar & BOOST_SERIALIZATION_NVP( isModified_siegelMaxRefiningThePeakSteps_positions );
-        ar & BOOST_SERIALIZATION_NVP( isModified_siegelRefiningThePeakStepsConvergenceThreshold );
-        ar & BOOST_SERIALIZATION_NVP( isModified_siegelMaxFindingTheGradientAttempts_positions );
-        ar & BOOST_SERIALIZATION_NVP( isModified_siegelMinEpsilon );
       } // serialize( Archive &, const unsigned int )
 
     public:
-  
+
       /// isModified flags for Parameters
-      bool isModified_trainProfileGlobals;
-  
-      bool isModified_trainProfilePositions;
-  
-      bool isModified_trainGlobalsFirst;
-  
-      bool isModified_minIterations; // at least 1
-  
-      bool isModified_maxIterations; // at least 1
-  
-      bool isModified_maxPositionCycles;
+      /**
+       * Declare isModified_<member>s for isModified_<member>s of ProfileTrainer::ParameterModifierTemplate
+       * TAH 9/13
+       **/
+      #undef GALOSH_DEF_OPT
+      #define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP) bool isModified_##NAME
+      #include "ProfileTrainerOptions.hpp"  // Declare isModified<member>s for ProfileTrainer::ParametersModifierTemplate
 
-      bool isModified_maxPositionCycles_sequence_identifiers;
-
-      bool isModified_maxPositionCycles_globals;
-
-      bool isModified_maxBaumWelchInverseScalar;
-
-      bool isModified_minBaumWelchInverseScalar;
-
-      bool isModified_baumWelchInverseScalarIncrement;
-
-      bool isModified_maxBaumWelchInverseScalar_sequence_identifiers;
-
-      bool isModified_minBaumWelchInverseScalar_sequence_identifiers;
-
-      bool isModified_baumWelchInverseScalarIncrement_sequence_identifiers;
-
-      bool isModified_maxBaumWelchInverseScalar_globals;
-
-      bool isModified_minBaumWelchInverseScalar_globals;
-
-      bool isModified_baumWelchInverseScalarIncrement_globals;
-
-      bool isModified_scorePercentChangeMinimum_iteration;
-    
-      bool isModified_scorePercentChangeMinimum_position_cycle;
-
-      bool isModified_euclideanDistanceMinimum_iteration;
-
-      bool isModified_euclideanDistanceMinimum_position_cycle;
-
-      bool isModified_alwaysAccept;
-
-      bool isModified_useAlignmentProfiles;
-
-      bool isModified_proposeProfileLengthChanges;
-
-      bool isModified_proposeDeletingThreshold;
-
-      bool isModified_proposeInsertingThreshold;
-
-      bool isModified_proposeDeletingThreshold_increment;
-      bool isModified_proposeInsertingThreshold_increment;
-
-      bool isModified_proposeInsertingPreAlignThreshold;
-
-      bool isModified_proposeInsertingPostAlignThreshold;
-
-      bool isModified_proposeInsertingOccupancyThreshold;
-
-      bool isModified_useSensitiveThresholding;
-
-      bool isModified_increaseThresholdsForLengthChanges_startIteration;
-
-      bool isModified_increaseThresholdsForLengthChanges_minIncrement;
-
-      bool isModified_alwaysAccept_disallowThreshold_profileDistance_iteration;
-
-      bool isModified_numIterationsBetweenLengthChanges;
-
-      bool isModified_useUnconditionalBaumWelch;
-    
-      bool isModified_baldiLearningRate;
-    
-      bool isModified_baldiTemperature;
-    
-      bool isModified_profileValueMinimum;
-
-      bool isModified_usePriors;
-
-      bool isModified_positionShouldBeTrained;
-
-      bool isModified_siegelMaxFindingThePeakAttempts_positions;
-
-      bool isModified_baldiHybrid;
-
-      bool isModified_siegelEpsilonScaleFactor;
-
-      bool isModified_unconditionalIsolatesGlobals;
-
-      bool isModified_siegelMaxRefiningThePeakSteps_positions;
-
-      bool isModified_siegelRefiningThePeakStepsConvergenceThreshold;
-
-      bool isModified_siegelMaxFindingTheGradientAttempts_positions;
-
-      bool isModified_siegelMinEpsilon;
-
+      // Base constructor
       ParametersModifierTemplate ();
-    
+
       // Copy constructor
       template <class AnyParametersModifierTemplate>
       ParametersModifierTemplate ( const AnyParametersModifierTemplate & copy_from );
-    
+
       // Copy constructor/operator
       template <class AnyParametersModifierTemplate>
       ParametersModifierTemplate & operator= (
@@ -935,7 +271,7 @@ template <class ProfileType,
       copyFromNonVirtual (
         AnyParametersModifierTemplate const & copy_from
       );
-        
+
       template <class AnyParametersModifierTemplate>
       void
       isModified_copyFromNonVirtual (
@@ -948,21 +284,21 @@ template <class ProfileType,
       isModified_reset ();
 
       template<class CharT, class Traits>
-      friend std::basic_ostream<CharT,Traits>&
+      friend std::ostream&
       operator<< (
-        std::basic_ostream<CharT,Traits>& os,
+        std::ostream& os,
         ParametersModifierTemplate const& parameters_modifier
       )
       {
         parameters_modifier.writeParametersModifier( os );
 
         return os;
-      } // friend operator<< ( basic_ostream &, ParametersModifierTemplate const& )
+      } // friend operator<< ( ostream &, ParametersModifierTemplate const& )
 
       template<class CharT, class Traits>
       void
       writeParametersModifier (
-        std::basic_ostream<CharT,Traits>& os
+        std::ostream& os
       );
 
       template<class AnyParameters>
@@ -976,7 +312,7 @@ template <class ProfileType,
     class Error {
     public:
       ProfileTrainer * m_trainer; // The enclosing state.
-    
+
       /**
        * The different types of error that the ProfileTrainer::ProfileTrainer could be in.
        * These should be consecutive from 0, and at the corresponding index in
@@ -986,7 +322,7 @@ template <class ProfileType,
         NoError = 0,
         IncosistentStateError = 1
       } m_type;
-    
+
       // TODO: Figure out how to get a static, constant array of strings
       #define DEFAULT_DESCRIPTION_0 "There is no known problem with the ProfileTrainer instance."
       #define DEFAULT_DESCRIPTION_1 "The ProfileTrainer instance appears to be in an incosistent state."
@@ -994,7 +330,7 @@ template <class ProfileType,
        * The (string) description of this error.
        */
       string m_description;
-    
+
       Error (
         ProfileTrainer * trainer,
         type_t type = NoError,
@@ -1007,11 +343,11 @@ template <class ProfileType,
       {
         // Do nothing else
       } // <init>( trainer, [ type_t, [ string ] ] )
-    
+
       ~Error () {
         // Do nothing
       } // <destroy>()
-    
+
       // TODO: Cast as int to the enum, and as str to the desc.
     }; // End inner class Error
 
@@ -1026,10 +362,10 @@ template <class ProfileType,
     vector<SequenceType> const & m_sequences;
 
     typedef Error error_t;
-    
+
     error_t m_error;
     Parameters m_trainingParameters;
-    
+
     /**
      * This profile is used to store globals to revert to during
      * lengthadjust. It gets altered every time there is a reversion: the
@@ -1042,35 +378,35 @@ template <class ProfileType,
      * This is the starting score.  It is not changed once it is set.
      */
     ScoreType m_scoreBeforeTraining;
-    
-    /** 
+
+    /**
      * The score after the performing the current or most recent training
      * step.
      */
     ScoreType m_endingScore;
-    
-    /** 
+
+    /**
      * The score at the beginning of the current iteration.
      */
     ScoreType m_startingScore_iteration;
 
-    /** 
+    /**
      * The score at the beginning of the current position cycle.
      */
     ScoreType m_startingScore_position_cycle;
 
-    /** 
+    /**
      * The score at the beginning of the current position training step.
      */
     ScoreType m_startingScore_position_step;
 
-    /** 
+    /**
      * The score at the beginning of the current position training substep,
      * when that substep is training the position-specific mixing parameters.
      */
     ScoreType m_startingScore_position_step_mixingParameters;
 
-    /** 
+    /**
      * The current position cycle (from 0)
      */
     uint32_t m_position_cycle;
@@ -1088,8 +424,8 @@ template <class ProfileType,
      * denomenator.
      */
     float m_bw_inverse_scalar;
-    
-    /** 
+
+    /**
      * The current position of the profile (from the end, backwards)
      */
     uint32_t m_row_i;
@@ -1113,7 +449,7 @@ template <class ProfileType,
      * number.  See also percentChange( a, b ).
      */
     double m_scorePercentChange;
-    
+
     /**
      * The current iteration, from 0..m_trainingParameters.maxIterations.
      */
@@ -1193,7 +529,7 @@ template <class ProfileType,
     /**
      * The global_entente is the data structure that holds the intermediate
      * values we need for Baum-Welch update of the global params.
-     */    
+     */
     typename DynamicProgramming<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::GlobalEntente m_global_entente;
 
     /**
@@ -1273,7 +609,7 @@ template <class ProfileType,
      * Only used if parameters.baldiLearningRate > 0
      */
     //typename DynamicProgramming<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::PositionBoltzmannGibbsChange m_baldi_position_boltzmann_gibbs_change;
-  PositionBoltzmannGibbs<ResidueType, ScoreType> m_baldi_position_boltzmann_gibbs_change;
+    PositionBoltzmannGibbs<ResidueType, ScoreType> m_baldi_position_boltzmann_gibbs_change;
 #endif // ALLOW_BOLTZMANN_GIBBS
 
     /**
@@ -1317,12 +653,12 @@ template <class ProfileType,
 
     /**
      * Default constructor.  See reinitialize(..).
-     */  
+     */
     ProfileTrainer ();
 
     /**
      * Construct a profile trainer with the given profile and sequences.
-     */  
+     */
     ProfileTrainer (
       ProfileType * profile,
       vector<SequenceType> const & sequences
@@ -1332,7 +668,7 @@ template <class ProfileType,
      * Construct a profile trainer with the same profile, sequences, and number
      * of sequences to use as the given ProfileTrainer reference.  Note that
      * other members are not copied.
-     */  
+     */
     ProfileTrainer (
       ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType> const & copy_from
     );
@@ -1341,7 +677,7 @@ template <class ProfileType,
      * Construct a profile trainer with the given profile and sequences, and
      * the number of sequences to use (use the first num_sequences_to_use
      * sequences only).
-     */  
+     */
     ProfileTrainer (
       ProfileType * profile,
       vector<SequenceType> const & sequences,
@@ -1351,13 +687,13 @@ template <class ProfileType,
     /**
      * Reset everything to initial values, except for the profile, the
      * sequences, and the number of sequences to use.
-     */  
+     */
     void
     reinitialize ();
 
     /**
      * (Re)set the profile and reinitialize.
-     */  
+     */
     void
     reinitialize (
       ProfileType * profile
@@ -1375,7 +711,7 @@ template <class ProfileType,
       const Parameters & parameters,
       ProfileType * profile
     );
-  
+
     ScoreType
     train ();
 
@@ -1413,7 +749,7 @@ template <class ProfileType,
       } else { // x1 > x2
         assert( x2 > x3 );
       }
-#endif // NDEBUG    
+#endif // NDEBUG
       if( ( x1 == x2 ) && ( x2 == x3 ) ) {
         // They're all the same.  This is silly.
         return( x2 );
@@ -1487,20 +823,25 @@ template <class ProfileType,
             class InternalNodeType>
   GALOSH_INLINE_INIT
   ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::Parameters::
-  Parameters ()
-  {
-    if( DEFAULT_debug >= DEBUG_All ) {
-      cout << "[debug] ProfileTrainer::Parameters::<init>()" << endl;
-    } // End if DEBUG_All
-    this->resetToDefaults();
-// ERE I AM.  DOPTE.  TODO: Uncomment this and fix (and then comment out #include "ProfileTrainerOptions.hpp" from ProfuseTestOptions.hpp)
-//#undef GALOSH_DEF_OPT
-//#define PROFUSETEST_DEFAULT_TMP_ARRAY_TO_VECTOR
-//#define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP)          \
-//		  DEFAULT_OPTIONS_DESCRIPTION.add_options()(#NAME,po::value<TYPE>()->default_value(DEFAULTVAL) TMP_EXTRA_STUFF,HELP)
-//        #include "ProfileTrainerOptions.hpp"  /// define all the commandline options for this module
-//#undef GALOSH_DEF_OPT
-  } // galosh::ProfileTrainer::Parameters::<init>()
+      Parameters (): matchEmissionPrior(NULL), globalPrior(NULL)  
+      {
+         #ifdef DEBUG
+         cout << "[debug] ProfileTrainer::Parameters::<init>()" << endl;
+         cout << "[debug] using ProfileTrainerOptions.hpp" << endl;
+         #endif
+         /**
+          *  Describe all options/parameters to the options_description object.  In the main
+          *  routine (whatever it may be) these descriptions will be parsed from the commandline
+          *  and possibly other sources.  This Parameters initializer calls it's parent to get
+          *  the ProlificParameter::Parameters options.
+          **/
+         #undef GALOSH_DEF_OPT
+         #define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP)          \
+         this->galosh::Parameters::m_galosh_options_description.add_options()(#NAME,po::value<TYPE>(&NAME)->default_value(DEFAULTVAL) TMP_EXTRA_STUFF,HELP)
+         #include "ProfileTrainerOptions.hpp"  /// define all the commandline options for this module
+
+         //this->resetToDefaults();
+      }   // galosh::ProfileTrainer::Parameters::<init>()
 
   template <class ProfileType,
             class ScoreType,
@@ -1513,9 +854,9 @@ template <class ProfileType,
       // Copy constructor
       Parameters ( const AnyParameters & copy_from )
       {
-        //if( copy_from.debug >= DEBUG_All ) {
-        //  cout << "[debug] ProfileTrainer::Parameters::<init>( copy_from )" << endl;
-        //} // End if DEBUG_All
+        if (copy_from.debug >= DEBUG_All )  {
+           cout << "[debug] ProfileTrainer::Parameters::<init>( copy_from )" << endl;
+        } // End if DEBUG_All
         copyFromNonVirtual( copy_from );
       } // <init>( AnyParameters const & )
 
@@ -1552,8 +893,8 @@ template <class ProfileType,
       copyFromNonVirtual (
         AnyParameters const & copy_from
       )
-      {
-        DynamicProgramming<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::Parameters::copyFromNonVirtual( copy_from );
+      { ///TAH 9/13 How much do we have to qualify copyFromNonVirtual?
+        ProlificParameters<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::Parameters::copyFromNonVirtual( copy_from );
         //if( copy_from.debug >= DEBUG_All ) {
         //  cout << "[debug] ProfileTrainer::Parameters::copyFromNonVirtual( copy_from )" << endl;
         //} // End if DEBUG_All
@@ -1573,59 +914,11 @@ template <class ProfileType,
     AnyParameters const & copy_from
   )
   {
-    trainProfileGlobals = copy_from.trainProfileGlobals;
-    trainProfilePositions = copy_from.trainProfilePositions;
-    trainGlobalsFirst = copy_from.trainGlobalsFirst;
-    minIterations = copy_from.minIterations;
-    maxIterations = copy_from.maxIterations;
-    maxPositionCycles = copy_from.maxPositionCycles;
-    maxPositionCycles_sequence_identifiers = copy_from.maxPositionCycles_sequence_identifiers;
-    maxPositionCycles_globals = copy_from.maxPositionCycles_globals;
-    maxBaumWelchInverseScalar = copy_from.maxBaumWelchInverseScalar;
-    minBaumWelchInverseScalar = copy_from.minBaumWelchInverseScalar;
-    baumWelchInverseScalarIncrement = copy_from.baumWelchInverseScalarIncrement;
-    maxBaumWelchInverseScalar_sequence_identifiers = copy_from.maxBaumWelchInverseScalar_sequence_identifiers;
-    minBaumWelchInverseScalar_sequence_identifiers = copy_from.minBaumWelchInverseScalar_sequence_identifiers;
-    baumWelchInverseScalarIncrement_sequence_identifiers = copy_from.baumWelchInverseScalarIncrement_sequence_identifiers;
-    maxBaumWelchInverseScalar_globals = copy_from.maxBaumWelchInverseScalar_globals;
-    minBaumWelchInverseScalar_globals = copy_from.minBaumWelchInverseScalar_globals;
-    baumWelchInverseScalarIncrement_globals = copy_from.baumWelchInverseScalarIncrement_globals;
-    scorePercentChangeMinimum_iteration = copy_from.scorePercentChangeMinimum_iteration;
-    scorePercentChangeMinimum_position_cycle = copy_from.scorePercentChangeMinimum_position_cycle;
-    euclideanDistanceMinimum_iteration = copy_from.euclideanDistanceMinimum_iteration;
-    euclideanDistanceMinimum_position_cycle = copy_from.euclideanDistanceMinimum_position_cycle;
-    alwaysAccept = copy_from.alwaysAccept;
-    useAlignmentProfiles = copy_from.useAlignmentProfiles;
-    proposeProfileLengthChanges = copy_from.proposeProfileLengthChanges;
-    proposeDeletingThreshold = copy_from.proposeDeletingThreshold;
-    proposeInsertingThreshold = copy_from.proposeInsertingThreshold;
-    proposeDeletingThreshold_increment = copy_from.proposeDeletingThreshold_increment;
-    proposeInsertingThreshold_increment = copy_from.proposeInsertingThreshold_increment;
-    proposeInsertingPreAlignThreshold = copy_from.proposeInsertingPreAlignThreshold;
-    proposeInsertingPostAlignThreshold = copy_from.proposeInsertingPostAlignThreshold;
-    proposeInsertingOccupancyThreshold = copy_from.proposeInsertingOccupancyThreshold;
-    useSensitiveThresholding = copy_from.useSensitiveThresholding;
-    increaseThresholdsForLengthChanges_startIteration = copy_from.increaseThresholdsForLengthChanges_startIteration;
-    increaseThresholdsForLengthChanges_minIncrement = copy_from.increaseThresholdsForLengthChanges_minIncrement;
-    alwaysAccept_disallowThreshold_profileDistance_iteration = copy_from.alwaysAccept_disallowThreshold_profileDistance_iteration;
-    numIterationsBetweenLengthChanges = copy_from.numIterationsBetweenLengthChanges;
-    useUnconditionalBaumWelch = copy_from.useUnconditionalBaumWelch;
-    baldiLearningRate = copy_from.baldiLearningRate;
-    baldiTemperature = copy_from.baldiTemperature;
-    profileValueMinimum = copy_from.profileValueMinimum;
-    usePriors = copy_from.usePriors;
-    matchEmissionPrior = copy_from.matchEmissionPrior;
-    globalPrior = copy_from.globalPrior;
-    positionShouldBeTrained = copy_from.positionShouldBeTrained;
+    /// TAH 9/13
+    #undef GALOSH_DEF_OPT
+    #define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP) NAME = copy_from. NAME
+    #include "ProfileTrainerOptions.hpp"  /// copy all ProfileTrainer::Parameters members
 
-    siegelMaxFindingThePeakAttempts_positions = copy_from.siegelMaxFindingThePeakAttempts_positions;
-    baldiHybrid = copy_from.baldiHybrid;
-    siegelEpsilonScaleFactor = copy_from.siegelEpsilonScaleFactor;
-    unconditionalIsolatesGlobals = copy_from.unconditionalIsolatesGlobals;
-    siegelMaxRefiningThePeakSteps_positions = copy_from.siegelMaxRefiningThePeakSteps_positions;
-    siegelRefiningThePeakStepsConvergenceThreshold = copy_from.siegelRefiningThePeakStepsConvergenceThreshold;
-    siegelMaxFindingTheGradientAttempts_positions = copy_from.siegelMaxFindingTheGradientAttempts_positions;
-    siegelMinEpsilon = copy_from.siegelMinEpsilon;
   } // copyFromNonVirtualDontDelegate( AnyParameters const & )
 
   template <class ProfileType,
@@ -1650,79 +943,20 @@ template <class ProfileType,
   void
   ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::Parameters::
       resetToDefaults ()
-      {
-        DynamicProgramming<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::Parameters::resetToDefaults();
-        // TODO: Why isn't the compiler finding "debug" in galosh::Parameters?
-        //if( debug >= DEBUG_All ) {
-        //  cout << "[debug] ProfileTrainer::Parameters::resetToDefaults()" << endl;
-        //} // End if DEBUG_All
-
-        useAlignmentProfiles = DEFAULT_useAlignmentProfiles;
-
-        proposeProfileLengthChanges = DEFAULT_proposeProfileLengthChanges;
-        proposeDeletingThreshold = DEFAULT_proposeDeletingThreshold;
-        proposeInsertingThreshold = DEFAULT_proposeInsertingThreshold;
-        proposeDeletingThreshold_increment = DEFAULT_proposeDeletingThreshold_increment;
-        proposeInsertingThreshold_increment = DEFAULT_proposeInsertingThreshold_increment;
-        proposeInsertingPreAlignThreshold = DEFAULT_proposeInsertingPreAlignThreshold;
-        proposeInsertingPostAlignThreshold = DEFAULT_proposeInsertingPostAlignThreshold;
-        proposeInsertingOccupancyThreshold = DEFAULT_proposeInsertingOccupancyThreshold;
-        useSensitiveThresholding = DEFAULT_useSensitiveThresholding;
-        increaseThresholdsForLengthChanges_startIteration = DEFAULT_increaseThresholdsForLengthChanges_startIteration;
-        increaseThresholdsForLengthChanges_minIncrement = DEFAULT_increaseThresholdsForLengthChanges_minIncrement;
-        alwaysAccept_disallowThreshold_profileDistance_iteration = DEFAULT_alwaysAccept_disallowThreshold_profileDistance_iteration;
-        numIterationsBetweenLengthChanges = DEFAULT_numIterationsBetweenLengthChanges;
-
-        useUnconditionalBaumWelch = DEFAULT_useUnconditionalBaumWelch;
-        baldiLearningRate = DEFAULT_baldiLearningRate;
-        baldiTemperature = DEFAULT_baldiTemperature;
-
-        profileValueMinimum = DEFAULT_profileValueMinimum;
-        positionShouldBeTrained = DEFAULT_positionShouldBeTrained;
-
-        // ERE I AM.  DOPTE.  TODO: Comment these and fix (and then comment out #include "ProfileTrainerOptions.hpp" from ProfuseTestOptions.hpp)
-        trainProfileGlobals = DEFAULT_trainProfileGlobals;
-        trainProfilePositions = DEFAULT_trainProfilePositions;
-        trainGlobalsFirst = DEFAULT_trainGlobalsFirst;
-
-        minIterations = DEFAULT_minIterations;
-        maxIterations = DEFAULT_maxIterations;
-        maxPositionCycles = DEFAULT_maxPositionCycles;
-        maxPositionCycles_globals = DEFAULT_maxPositionCycles_globals;
-        // Not used?
-        maxPositionCycles_sequence_identifiers = DEFAULT_maxPositionCycles_sequence_identifiers;
-
-        maxBaumWelchInverseScalar = DEFAULT_maxBaumWelchInverseScalar;
-        minBaumWelchInverseScalar = DEFAULT_minBaumWelchInverseScalar;
-        baumWelchInverseScalarIncrement = DEFAULT_baumWelchInverseScalarIncrement;
-        maxBaumWelchInverseScalar_globals = DEFAULT_maxBaumWelchInverseScalar_globals;
-        minBaumWelchInverseScalar_globals = DEFAULT_minBaumWelchInverseScalar_globals;
-        baumWelchInverseScalarIncrement_globals = DEFAULT_baumWelchInverseScalarIncrement_globals;
-        // Not used?
-        baumWelchInverseScalarIncrement_sequence_identifiers = DEFAULT_baumWelchInverseScalarIncrement_sequence_identifiers;
-        // Not used?
-        maxBaumWelchInverseScalar_sequence_identifiers = DEFAULT_maxBaumWelchInverseScalar_sequence_identifiers;
-        // Not used?
-        minBaumWelchInverseScalar_sequence_identifiers = DEFAULT_minBaumWelchInverseScalar_sequence_identifiers;
-
-        usePriors = DEFAULT_usePriors;
-        alwaysAccept = DEFAULT_alwaysAccept;
-
-        scorePercentChangeMinimum_iteration = DEFAULT_scorePercentChangeMinimum_iteration;
-        scorePercentChangeMinimum_position_cycle = DEFAULT_scorePercentChangeMinimum_position_cycle;
-        euclideanDistanceMinimum_iteration = DEFAULT_euclideanDistanceMinimum_iteration;
-        euclideanDistanceMinimum_position_cycle = DEFAULT_euclideanDistanceMinimum_position_cycle;
-
-        siegelMaxFindingThePeakAttempts_positions = DEFAULT_siegelMaxFindingThePeakAttempts_positions;
-        baldiHybrid = DEFAULT_baldiHybrid;
-        siegelEpsilonScaleFactor = DEFAULT_siegelEpsilonScaleFactor;
-        unconditionalIsolatesGlobals = DEFAULT_unconditionalIsolatesGlobals;
-        siegelMaxRefiningThePeakSteps_positions = DEFAULT_siegelMaxRefiningThePeakSteps_positions;
-        siegelRefiningThePeakStepsConvergenceThreshold = DEFAULT_siegelRefiningThePeakStepsConvergenceThreshold;
-        siegelMaxFindingTheGradientAttempts_positions = DEFAULT_siegelMaxFindingTheGradientAttempts_positions;
-        siegelMinEpsilon = DEFAULT_siegelMinEpsilon;
+      { /// TAH 9/13 How far to qualify parent?
+        ProlificParameters<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::Parameters::resetToDefaults();
+        if( Parameters::debug >= DEBUG_All ) {
+           cout << "[debug] ProfileTrainer::Parameters::resetToDefaults()" << endl;
+        } // End if DEBUG_All
+        /// TAH 9/13
+        #undef GALOSH_DEF_OPT
+        #define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP) NAME = this->Parameters::m_galosh_options_map[#NAME].template as<TYPE>()
+        #include "ProfileTrainerOptions.hpp"  /// reset all Parameters members
+                                              /// (ProfileTrainer and through inheritance tree)
+        matchEmissionPrior = NULL;
+        globalPrior = NULL;
       } // resetToDefaults()
-    
+
   template <class ProfileType,
             class ScoreType,
             class MatrixValueType,
@@ -1730,67 +964,29 @@ template <class ProfileType,
             class InternalNodeType>
       template<class CharT, class Traits>
   GALOSH_INLINE_OSTREAM
-      void
+  void
   ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::Parameters::
-      writeParameters ( 
-        std::basic_ostream<CharT,Traits>& os
+      writeParameters (
+        std::ostream& os
       ) const
-      {
-        DynamicProgramming<ResidueType, ProbabilityType,ScoreType,MatrixValueType>::Parameters::writeParameters( os );
+      { // TAH 9/13 How far to qualify?
+        ProlificParameters<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::Parameters::writeParameters( os );
         os << endl;
 
-        os << "[ProfileTrainer]" << endl;
-        os << "trainProfileGlobals = " << trainProfileGlobals << endl;
-        os << "trainProfilePositions = " << trainProfilePositions << endl;
-        os << "trainGlobalsFirst = " << trainGlobalsFirst << endl;
-        os << "minIterations = " << minIterations << endl;
-        os << "maxIterations = " << maxIterations << endl;
-        os << "maxPositionCycles = " << maxPositionCycles << endl;
-        os << "maxPositionCycles_sequence_identifiers = " << maxPositionCycles_sequence_identifiers << endl;
-        os << "maxPositionCycles_globals = " << maxPositionCycles_globals << endl;
-        os << "maxBaumWelchInverseScalar = " << maxBaumWelchInverseScalar << endl;
-        os << "minBaumWelchInverseScalar = " << minBaumWelchInverseScalar << endl;
-        os << "baumWelchInverseScalarIncrement = " << baumWelchInverseScalarIncrement << endl;
-        os << "maxBaumWelchInverseScalar_sequence_identifiers = " << maxBaumWelchInverseScalar_sequence_identifiers << endl;
-        os << "minBaumWelchInverseScalar_sequence_identifiers = " << minBaumWelchInverseScalar_sequence_identifiers << endl;
-        os << "baumWelchInverseScalarIncrement_sequence_identifiers = " << baumWelchInverseScalarIncrement_sequence_identifiers << endl;
-        os << "maxBaumWelchInverseScalar_globals = " << maxBaumWelchInverseScalar_globals << endl;
-        os << "minBaumWelchInverseScalar_globals = " << minBaumWelchInverseScalar_globals << endl;
-        os << "baumWelchInverseScalarIncrement_globals = " << baumWelchInverseScalarIncrement_globals << endl;
-        os << "scorePercentChangeMinimum_iteration = " << scorePercentChangeMinimum_iteration << endl;
-        os << "scorePercentChangeMinimum_position_cycle = " << scorePercentChangeMinimum_position_cycle << endl;
-        os << "euclideanDistanceMinimum_iteration = " << euclideanDistanceMinimum_iteration << endl;
-        os << "euclideanDistanceMinimum_position_cycle = " << euclideanDistanceMinimum_position_cycle << endl;
-        os << "alwaysAccept = " << alwaysAccept << endl;
-        os << "useAlignmentProfiles = " << useAlignmentProfiles << endl;
-        os << "proposeProfileLengthChanges = " << proposeProfileLengthChanges << endl;
-        os << "proposeDeletingThreshold = " << proposeDeletingThreshold << endl;
-        os << "proposeInsertingThreshold = " << proposeInsertingThreshold << endl;
-        os << "proposeDeletingThreshold_increment = " << proposeDeletingThreshold_increment << endl;
-        os << "proposeInsertingThreshold_increment = " << proposeInsertingThreshold_increment << endl;
-        os << "proposeInsertingPreAlignThreshold = " << proposeInsertingPreAlignThreshold << endl;
-        os << "proposeInsertingPostAlignThreshold = " << proposeInsertingPostAlignThreshold << endl;
-        os << "proposeInsertingOccupancyThreshold = " << proposeInsertingOccupancyThreshold << endl;
-        os << "useSensitiveThresholding = " << useSensitiveThresholding << endl;
-        os << "increaseThresholdsForLengthChanges_startIteration = " << increaseThresholdsForLengthChanges_startIteration << endl;
-        os << "increaseThresholdsForLengthChanges_minIncrement = " << increaseThresholdsForLengthChanges_minIncrement << endl;
-        os << "alwaysAccept_disallowThreshold_profileDistance_iteration = " << alwaysAccept_disallowThreshold_profileDistance_iteration << endl;
-        os << "numIterationsBetweenLengthChanges = " << numIterationsBetweenLengthChanges << endl;
-        os << "useUnconditionalBaumWelch = " << useUnconditionalBaumWelch << endl << endl;
-        os << "baldiLearningRate = " << baldiLearningRate << endl;
-        os << "baldiTemperature = " << baldiTemperature << endl;
-        os << "profileValueMinimum = " << profileValueMinimum << endl;
-        os << "usePriors = " << usePriors << endl;
-        os << "positionShouldBeTrained = " << positionShouldBeTrained << endl;
-        os << "siegelMaxFindingThePeakAttempts_positions = " << siegelMaxFindingThePeakAttempts_positions << endl;
-        os << "baldiHybrid = " << baldiHybrid << endl;
-        os << "siegelEpsilonScaleFactor = " << siegelEpsilonScaleFactor << endl;
-        os << "unconditionalIsolatesGlobals = " << unconditionalIsolatesGlobals << endl;
-        os << "siegelMaxRefiningThePeakSteps_positions = " << siegelMaxRefiningThePeakSteps_positions << endl;
-        os << "siegelRefiningThePeakStepsConvergenceThreshold = " << siegelRefiningThePeakStepsConvergenceThreshold << endl;
-        os << "siegelMaxFindingTheGradientAttempts_positions = " << siegelMaxFindingTheGradientAttempts_positions << endl;
-        os << "siegelMinEpsilon = " << siegelMinEpsilon << endl;
-      } // writeParameters( basic_ostream & ) const
+        //Note: we must comment out [ProfileTrainer] because it means something special to
+        //in configuration files sensu program_options
+        os << "#[ProfileTrainer]" << endl;
+
+        /**
+         * write out all ProfileTrainer specific parameters in the style of a configuration
+         * file, so that program_options parsers can read it back in
+         *   TAH 9/13
+         **/
+        #undef GALOSH_DEF_OPT
+        #define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP) os << #NAME << " = " << lexical_cast<string>(NAME) << endl
+        #include "ProfileTrainerOptions.hpp"  /// write all ProfileTrainer::Parameters members to os
+
+      } // writeParameters( ostream & ) const
 
   ////// Class galosh::ProfileTrainer::ParametersModifierTemplate ////
   template <class ProfileType,
@@ -1801,6 +997,7 @@ template <class ProfileType,
   template <class ParametersType>
   GALOSH_INLINE_INIT
   ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::ParametersModifierTemplate<ParametersType>::
+      // Base constructor
       ParametersModifierTemplate ()
       {
         if( base_parameters_modifier_t::parameters.debug >= DEBUG_All ) {
@@ -1826,7 +1023,7 @@ template <class ProfileType,
         } // End if DEBUG_All
         copyFromNonVirtual( copy_from );
       } // <init>( AnyParametersModifierTemplate const & )
-    
+
   template <class ProfileType,
             class ScoreType,
             class MatrixValueType,
@@ -1857,65 +1054,20 @@ template <class ProfileType,
   template <class ParametersType>
   template <class AnyParametersModifierTemplate>
   GALOSH_INLINE_COPY
-      void
+  void
   ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::ParametersModifierTemplate<ParametersType>::
       isModified_copyFromNonVirtual (
         AnyParametersModifierTemplate const & copy_from
       )
       {
+        /// Copy all parent isModified_<member>s
         base_parameters_modifier_t::isModified_copyFromNonVirtual( copy_from );
-        isModified_trainProfileGlobals = copy_from.isModified_trainProfileGlobals;
-        isModified_trainProfilePositions = copy_from.isModified_trainProfilePositions;
-        isModified_trainGlobalsFirst = copy_from.isModified_trainGlobalsFirst;
-        isModified_minIterations = copy_from.isModified_minIterations;
-        isModified_maxIterations = copy_from.isModified_maxIterations;
-        isModified_maxPositionCycles = copy_from.isModified_maxPositionCycles;
-        isModified_maxPositionCycles_sequence_identifiers = copy_from.isModified_maxPositionCycles_sequence_identifiers;
-        isModified_maxPositionCycles_globals = copy_from.isModified_maxPositionCycles_globals;
-        isModified_maxBaumWelchInverseScalar = copy_from.isModified_maxBaumWelchInverseScalar;
-        isModified_minBaumWelchInverseScalar = copy_from.isModified_minBaumWelchInverseScalar;
-        isModified_baumWelchInverseScalarIncrement = copy_from.isModified_baumWelchInverseScalarIncrement;
-        isModified_maxBaumWelchInverseScalar_sequence_identifiers = copy_from.isModified_maxBaumWelchInverseScalar_sequence_identifiers;
-        isModified_minBaumWelchInverseScalar_sequence_identifiers = copy_from.isModified_minBaumWelchInverseScalar_sequence_identifiers;
-        isModified_baumWelchInverseScalarIncrement_sequence_identifiers = copy_from.isModified_baumWelchInverseScalarIncrement_sequence_identifiers;
-        isModified_maxBaumWelchInverseScalar_globals = copy_from.isModified_maxBaumWelchInverseScalar_globals;
-        isModified_minBaumWelchInverseScalar_globals = copy_from.isModified_minBaumWelchInverseScalar_globals;
-        isModified_baumWelchInverseScalarIncrement_globals = copy_from.isModified_baumWelchInverseScalarIncrement_globals;
-        isModified_scorePercentChangeMinimum_iteration = copy_from.isModified_scorePercentChangeMinimum_iteration;
-        isModified_scorePercentChangeMinimum_position_cycle = copy_from.isModified_scorePercentChangeMinimum_position_cycle;
-        isModified_euclideanDistanceMinimum_iteration = copy_from.isModified_euclideanDistanceMinimum_iteration;
-        isModified_euclideanDistanceMinimum_position_cycle = copy_from.isModified_euclideanDistanceMinimum_position_cycle;
-        isModified_alwaysAccept = copy_from.isModified_alwaysAccept;
-        isModified_useAlignmentProfiles = copy_from.isModified_useAlignmentProfiles;
-        isModified_proposeProfileLengthChanges = copy_from.isModified_proposeProfileLengthChanges;
-        isModified_proposeDeletingThreshold = copy_from.isModified_proposeDeletingThreshold;
-        isModified_proposeInsertingThreshold = copy_from.isModified_proposeInsertingThreshold;
-        isModified_proposeDeletingThreshold_increment = copy_from.isModified_proposeDeletingThreshold_increment;
-        isModified_proposeInsertingThreshold_increment = copy_from.isModified_proposeInsertingThreshold_increment;
-        isModified_proposeInsertingPreAlignThreshold = copy_from.isModified_proposeInsertingPreAlignThreshold;
-        isModified_proposeInsertingPostAlignThreshold = copy_from.isModified_proposeInsertingPostAlignThreshold;
-        isModified_proposeInsertingOccupancyThreshold = copy_from.isModified_proposeInsertingOccupancyThreshold;
-        isModified_useSensitiveThresholding = copy_from.isModified_useSensitiveThresholding;
-        isModified_increaseThresholdsForLengthChanges_startIteration = copy_from.isModified_increaseThresholdsForLengthChanges_startIteration;
-        isModified_increaseThresholdsForLengthChanges_minIncrement = copy_from.isModified_increaseThresholdsForLengthChanges_minIncrement;
-        isModified_alwaysAccept_disallowThreshold_profileDistance_iteration = copy_from.isModified_alwaysAccept_disallowThreshold_profileDistance_iteration;
-        isModified_numIterationsBetweenLengthChanges = copy_from.isModified_numIterationsBetweenLengthChanges;
-        isModified_useUnconditionalBaumWelch = copy_from.isModified_useUnconditionalBaumWelch;
-        isModified_baldiLearningRate = copy_from.isModified_baldiLearningRate;
-        isModified_baldiTemperature = copy_from.isModified_baldiTemperature;
-        isModified_profileValueMinimum = copy_from.isModified_profileValueMinimum;
-        isModified_usePriors = copy_from.isModified_usePriors;
-        isModified_positionShouldBeTrained = copy_from.isModified_positionShouldBeTrained;
-        isModified_siegelMaxFindingThePeakAttempts_positions = copy_from.isModified_siegelMaxFindingThePeakAttempts_positions;
-        isModified_baldiHybrid = copy_from.isModified_baldiHybrid;
-        isModified_siegelEpsilonScaleFactor = copy_from.isModified_siegelEpsilonScaleFactor;
-        isModified_unconditionalIsolatesGlobals = copy_from.isModified_unconditionalIsolatesGlobals;
-        isModified_siegelMaxRefiningThePeakSteps_positions = copy_from.isModified_siegelMaxRefiningThePeakSteps_positions;
-        isModified_siegelRefiningThePeakStepsConvergenceThreshold = copy_from.isModified_siegelRefiningThePeakStepsConvergenceThreshold;
-        isModified_siegelMaxFindingTheGradientAttempts_positions = copy_from.isModified_siegelMaxFindingTheGradientAttempts_positions;
-        isModified_siegelMinEpsilon = copy_from.isModified_siegelMinEpsilon;
-      } // isModified_copyFromNonVirtual ( AnyParametersModifierTemplate const & )
+        /// TAH 9/13 copy all ProfileTrainer::isModified_<member>s
+        #undef GALOSH_DEF_OPT
+        #define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP) isModified_##NAME = copy_from.isModified_##NAME
+        #include "ProfileTrainerOptions.hpp"  // Copy ProfileTrainer::ParametersModifierTemplate::isModified_<member>s
 
+      } // isModified_copyFromNonVirtual ( AnyParametersModifierTemplate const & )
 
   template <class ProfileType,
             class ScoreType,
@@ -1939,62 +1091,17 @@ template <class ProfileType,
             class InternalNodeType>
   template <class ParametersType>
   GALOSH_INLINE_REINITIALIZE
-      void
+  void
   ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::ParametersModifierTemplate<ParametersType>::
       isModified_reset ()
       {
+        /// Set all parent ParametersModifierTemplate::isModified_<member>s to false
         base_parameters_modifier_t::isModified_reset();
+        /// TAH 9/13 set all ProfileTrainer::ParametersModifierTemplate::isModified_<member>s to false
+        #undef GALOSH_DEF_OPT
+        #define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP) isModified_##NAME = false;
+        #include "ProfileTrainerOptions.hpp" // Reset ProfileTrainer::ParametersModifierTemplate::isModified_<member>s to false
 
-        isModified_trainProfileGlobals = false;
-        isModified_trainProfilePositions = false;
-        isModified_trainGlobalsFirst = false;
-        isModified_minIterations = false;
-        isModified_maxIterations = false;
-        isModified_maxPositionCycles = false;
-        isModified_maxPositionCycles_sequence_identifiers = false;
-        isModified_maxPositionCycles_globals = false;
-        isModified_maxBaumWelchInverseScalar = false;
-        isModified_minBaumWelchInverseScalar = false;
-        isModified_baumWelchInverseScalarIncrement = false;
-        isModified_maxBaumWelchInverseScalar_sequence_identifiers = false;
-        isModified_minBaumWelchInverseScalar_sequence_identifiers = false;
-        isModified_baumWelchInverseScalarIncrement_sequence_identifiers = false;
-        isModified_maxBaumWelchInverseScalar_globals = false;
-        isModified_minBaumWelchInverseScalar_globals = false;
-        isModified_baumWelchInverseScalarIncrement_globals = false;
-        isModified_scorePercentChangeMinimum_iteration = false;
-        isModified_scorePercentChangeMinimum_position_cycle = false;
-        isModified_euclideanDistanceMinimum_iteration = false;
-        isModified_euclideanDistanceMinimum_position_cycle = false;
-        isModified_alwaysAccept = false;
-        isModified_useAlignmentProfiles = false;
-        isModified_proposeProfileLengthChanges = false;
-        isModified_proposeDeletingThreshold = false;
-        isModified_proposeInsertingThreshold = false;
-        isModified_proposeDeletingThreshold_increment = false;
-        isModified_proposeInsertingThreshold_increment = false;
-        isModified_proposeInsertingPreAlignThreshold = false;
-        isModified_proposeInsertingPostAlignThreshold = false;
-        isModified_proposeInsertingOccupancyThreshold = false;
-        isModified_useSensitiveThresholding = false;
-        isModified_increaseThresholdsForLengthChanges_startIteration = false;
-        isModified_increaseThresholdsForLengthChanges_minIncrement = false;
-        isModified_alwaysAccept_disallowThreshold_profileDistance_iteration = false;
-        isModified_numIterationsBetweenLengthChanges = false;
-        isModified_useUnconditionalBaumWelch = false;
-        isModified_baldiLearningRate = false;
-        isModified_baldiTemperature = false;
-        isModified_profileValueMinimum = false;
-        isModified_usePriors = false;
-        isModified_positionShouldBeTrained = false;
-        isModified_siegelMaxFindingThePeakAttempts_positions = false;
-        isModified_baldiHybrid = false;
-        isModified_siegelEpsilonScaleFactor = false;
-        isModified_unconditionalIsolatesGlobals = false;
-        isModified_siegelMaxRefiningThePeakSteps_positions = false;
-        isModified_siegelRefiningThePeakStepsConvergenceThreshold = false;
-        isModified_siegelMaxFindingTheGradientAttempts_positions = false;
-        isModified_siegelMinEpsilon = false;
       } // isModified_reset()
 
   template <class ProfileType,
@@ -2005,167 +1112,26 @@ template <class ProfileType,
   template <class ParametersType>
   template<class CharT, class Traits>
   GALOSH_INLINE_OSTREAM
-      void
+  void
   ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::ParametersModifierTemplate<ParametersType>::
       writeParametersModifier (
-        std::basic_ostream<CharT,Traits>& os
+        std::ostream& os
       )
-      {
-        DynamicProgramming<ResidueType, ProbabilityType,ScoreType,MatrixValueType>::template ParametersModifierTemplate<ParametersType>::writeParametersModifier( os );
+      { //TAH 9/13 How far to qualify?
+        // Write out parent parameters if they've been changed
+        ProlificParameters<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::template ParametersModifierTemplate<ParametersType>::writeParametersModifier( os );
         os << endl;
+        /// TAH 9/13 must comment out tags in square braces for program_options config file parser
+        os << "#[ProfileTrainer]" << endl;
+        /**
+         * write out ProfileTrainer::parameters iff they've been modified
+         *   TAH 9/13
+         **/
+        #undef GALOSH_DEF_OPT
+        #define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP) if( isModified_##NAME ) os << #NAME << " = " << lexical_cast<string>(galosh::ParametersModifierTemplate<ParametersType>::parameters. NAME)
+        #include "ProfileTrainerOptions.hpp" // write out changed ProfileTrainerParameters::ParametersModifierTemplate parameters
 
-        os << "[ProfileTrainer]" << endl;
-        if( isModified_trainProfileGlobals ) {
-          os << "trainProfileGlobals = " << base_parameters_modifier_t::parameters.trainProfileGlobals << endl;
-        }
-        if( isModified_trainProfilePositions ) {
-          os << "trainProfilePositions = " << base_parameters_modifier_t::parameters.trainProfilePositions << endl;
-        }
-        if( isModified_trainGlobalsFirst ) {
-          os << "trainGlobalsFirst = " << base_parameters_modifier_t::parameters.trainGlobalsFirst << endl;
-        }
-        if( isModified_minIterations ) {
-          os << "minIterations = " << base_parameters_modifier_t::parameters.minIterations << endl;
-        }
-        if( isModified_maxIterations ) {
-          os << "maxIterations = " << base_parameters_modifier_t::parameters.maxIterations << endl;
-        }
-        if( isModified_maxPositionCycles ) {
-          os << "maxPositionCycles = " << base_parameters_modifier_t::parameters.maxPositionCycles << endl;
-        }
-        if( isModified_maxPositionCycles_sequence_identifiers ) {
-          os << "maxPositionCycles_sequence_identifiers = " << base_parameters_modifier_t::parameters.maxPositionCycles_sequence_identifiers << endl;
-        }
-        if( isModified_maxPositionCycles_globals ) {
-          os << "maxPositionCycles_globals = " << base_parameters_modifier_t::parameters.maxPositionCycles_globals << endl;
-        }
-        if( isModified_maxBaumWelchInverseScalar ) {
-          os << "maxBaumWelchInverseScalar = " << base_parameters_modifier_t::parameters.maxBaumWelchInverseScalar << endl;
-        }
-        if( isModified_minBaumWelchInverseScalar ) {
-          os << "minBaumWelchInverseScalar = " << base_parameters_modifier_t::parameters.minBaumWelchInverseScalar << endl;
-        }
-        if( isModified_baumWelchInverseScalarIncrement ) {
-          os << "baumWelchInverseScalarIncrement = " << base_parameters_modifier_t::parameters.baumWelchInverseScalarIncrement << endl;
-        }
-        if( isModified_maxBaumWelchInverseScalar_sequence_identifiers ) {
-          os << "maxBaumWelchInverseScalar_sequence_identifiers = " << base_parameters_modifier_t::parameters.maxBaumWelchInverseScalar_sequence_identifiers << endl;
-        }
-        if( isModified_minBaumWelchInverseScalar_sequence_identifiers ) {
-          os << "minBaumWelchInverseScalar_sequence_identifiers = " << base_parameters_modifier_t::parameters.minBaumWelchInverseScalar_sequence_identifiers << endl;
-        }
-        if( isModified_baumWelchInverseScalarIncrement_sequence_identifiers ) {
-          os << "baumWelchInverseScalarIncrement_sequence_identifiers = " << base_parameters_modifier_t::parameters.baumWelchInverseScalarIncrement_sequence_identifiers << endl;
-        }
-        if( isModified_maxBaumWelchInverseScalar_globals ) {
-          os << "maxBaumWelchInverseScalar_globals = " << base_parameters_modifier_t::parameters.maxBaumWelchInverseScalar_globals << endl;
-        }
-        if( isModified_minBaumWelchInverseScalar_globals ) {
-          os << "minBaumWelchInverseScalar_globals = " << base_parameters_modifier_t::parameters.minBaumWelchInverseScalar_globals << endl;
-        }
-        if( isModified_baumWelchInverseScalarIncrement_globals ) {
-          os << "baumWelchInverseScalarIncrement_globals = " << base_parameters_modifier_t::parameters.baumWelchInverseScalarIncrement_globals << endl;
-        }
-        if( isModified_scorePercentChangeMinimum_iteration ) {
-          os << "scorePercentChangeMinimum_iteration = " << base_parameters_modifier_t::parameters.scorePercentChangeMinimum_iteration << endl;
-        }
-        if( isModified_scorePercentChangeMinimum_position_cycle ) {
-          os << "scorePercentChangeMinimum_position_cycle = " << base_parameters_modifier_t::parameters.scorePercentChangeMinimum_position_cycle << endl;
-        }
-        if( isModified_euclideanDistanceMinimum_iteration ) {
-          os << "euclideanDistanceMinimum_iteration = " << base_parameters_modifier_t::parameters.euclideanDistanceMinimum_iteration << endl;
-        }
-        if( isModified_euclideanDistanceMinimum_position_cycle ) {
-          os << "euclideanDistanceMinimum_position_cycle = " << base_parameters_modifier_t::parameters.euclideanDistanceMinimum_position_cycle << endl;
-        }
-        if( isModified_alwaysAccept ) {
-          os << "alwaysAccept = " << base_parameters_modifier_t::parameters.alwaysAccept << endl;
-        }
-        if( isModified_useAlignmentProfiles ) {
-          os << "useAlignmentProfiles = " << base_parameters_modifier_t::parameters.useAlignmentProfiles << endl;
-        }
-        if( isModified_proposeProfileLengthChanges ) {
-          os << "proposeProfileLengthChanges = " << base_parameters_modifier_t::parameters.proposeProfileLengthChanges << endl;
-        }
-        if( isModified_proposeDeletingThreshold ) {
-          os << "proposeDeletingThreshold = " << base_parameters_modifier_t::parameters.proposeDeletingThreshold << endl;
-        }
-        if( isModified_proposeInsertingThreshold ) {
-          os << "proposeInsertingThreshold = " << base_parameters_modifier_t::parameters.proposeInsertingThreshold << endl;
-        }
-        if( isModified_proposeDeletingThreshold_increment ) {
-          os << "proposeDeletingThreshold_increment = " << base_parameters_modifier_t::parameters.proposeDeletingThreshold_increment << endl;
-        }
-        if( isModified_proposeInsertingThreshold_increment ) {
-          os << "proposeInsertingThreshold_increment = " << base_parameters_modifier_t::parameters.proposeInsertingThreshold_increment << endl;
-        }
-        if( isModified_proposeInsertingPreAlignThreshold ) {
-          os << "proposeInsertingPreAlignThreshold = " << base_parameters_modifier_t::parameters.proposeInsertingPreAlignThreshold << endl;
-        }
-        if( isModified_proposeInsertingPostAlignThreshold ) {
-          os << "proposeInsertingPostAlignThreshold = " << base_parameters_modifier_t::parameters.proposeInsertingPostAlignThreshold << endl;
-        }
-        if( isModified_proposeInsertingOccupancyThreshold ) {
-          os << "proposeInsertingOccupancyThreshold = " << base_parameters_modifier_t::parameters.proposeInsertingOccupancyThreshold << endl;
-        }
-        if( isModified_useSensitiveThresholding ) {
-          os << "useSensitiveThresholding = " << base_parameters_modifier_t::parameters.useSensitiveThresholding << endl;
-        }
-        if( isModified_increaseThresholdsForLengthChanges_startIteration ) {
-          os << "increaseThresholdsForLengthChanges_startIteration = " << base_parameters_modifier_t::parameters.increaseThresholdsForLengthChanges_startIteration << endl;
-        }
-        if( isModified_increaseThresholdsForLengthChanges_minIncrement ) {
-          os << "increaseThresholdsForLengthChanges_minIncrement = " << base_parameters_modifier_t::parameters.increaseThresholdsForLengthChanges_minIncrement << endl;
-        }
-        if( isModified_alwaysAccept_disallowThreshold_profileDistance_iteration ) {
-          os << "alwaysAccept_disallowThreshold_profileDistance_iteration = " << base_parameters_modifier_t::parameters.alwaysAccept_disallowThreshold_profileDistance_iteration << endl;
-        }
-        if( isModified_numIterationsBetweenLengthChanges ) {
-          os << "numIterationsBetweenLengthChanges = " << base_parameters_modifier_t::parameters.numIterationsBetweenLengthChanges << endl;
-        }
-        if( isModified_useUnconditionalBaumWelch ) {
-          os << "useUnconditionalBaumWelch = " << base_parameters_modifier_t::parameters.useUnconditionalBaumWelch << endl;
-        }
-        if( isModified_baldiLearningRate ) {
-          os << "baldiLearningRate = " << base_parameters_modifier_t::parameters.baldiLearningRate << endl;
-        }
-        if( isModified_baldiTemperature ) {
-          os << "baldiTemperature = " << base_parameters_modifier_t::parameters.baldiTemperature << endl;
-        }
-        if( isModified_profileValueMinimum ) {
-          os << "profileValueMinimum = " << base_parameters_modifier_t::parameters.profileValueMinimum << endl;
-        }
-        if( isModified_usePriors ) {
-          os << "usePriors = " << base_parameters_modifier_t::parameters.usePriors << endl;
-        }
-        if( isModified_positionShouldBeTrained ) {
-          os << "positionShouldBeTrained = " << base_parameters_modifier_t::parameters.positionShouldBeTrained << endl;
-        }
-        if( isModified_siegelMaxFindingThePeakAttempts_positions ) {
-          os << "siegelMaxFindingThePeakAttempts_positions = " << base_parameters_modifier_t::parameters.siegelMaxFindingThePeakAttempts_positions << endl;
-        }
-        if( isModified_baldiHybrid ) {
-          os << "baldiHybrid = " << base_parameters_modifier_t::parameters.baldiHybrid << endl;
-        }
-        if( isModified_siegelEpsilonScaleFactor ) {
-          os << "siegelEpsilonScaleFactor = " << base_parameters_modifier_t::parameters.siegelEpsilonScaleFactor << endl;
-        }
-        if( isModified_unconditionalIsolatesGlobals ) {
-          os << "unconditionalIsolatesGlobals = " << base_parameters_modifier_t::parameters.unconditionalIsolatesGlobals << endl;
-        }
-        if( isModified_siegelMaxRefiningThePeakSteps_positions ) {
-          os << "siegelMaxRefiningThePeakSteps_positions = " << base_parameters_modifier_t::parameters.siegelMaxRefiningThePeakSteps_positions << endl;
-        }
-        if( isModified_siegelRefiningThePeakStepsConvergenceThreshold ) {
-          os << "siegelRefiningThePeakStepsConvergenceThreshold = " << base_parameters_modifier_t::parameters.siegelRefiningThePeakStepsConvergenceThreshold << endl;
-        }
-        if( isModified_siegelMaxFindingTheGradientAttempts_positions ) {
-          os << "siegelMaxFindingTheGradientAttempts_positions = " << base_parameters_modifier_t::parameters.siegelMaxFindingTheGradientAttempts_positions << endl;
-        }
-        if( isModified_siegelMinEpsilon ) {
-          os << "siegelMinEpsilon = " << base_parameters_modifier_t::parameters.siegelMinEpsilon << endl;
-        }
-      } // writeParametersModifier ( basic_ostream & ) const
+      } // writeParametersModifier ( ostream & ) const
 
   template <class ProfileType,
             class ScoreType,
@@ -2175,212 +1141,21 @@ template <class ProfileType,
   template <class ParametersType>
   template<class AnyParameters>
   GALOSH_INLINE_PARAMETERSMODIFIER_APPLY_MODIFICATIONS
-      void
+  void
   ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::ParametersModifierTemplate<ParametersType>::
       applyModifications ( AnyParameters & target_parameters )
       {
+        /// Set the parameters of another object iff they've been changed in this one
         base_parameters_modifier_t::applyModifications( target_parameters );
+        /**
+         * Set the parameters of a foreign Parameters object to this Parameter object's values
+         * iff they have changed.
+         *    TAH 9/13
+         **/
+        #undef GALOSH_DEF_OPT
+        #define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP) if( isModified_##NAME ) target_parameters. NAME = this->parameters. NAME
+        #include "ProfileTrainerOptions.hpp" // copy changed parameters
 
-        if( isModified_trainProfileGlobals ) {
-          target_parameters.trainProfileGlobals =
-            base_parameters_modifier_t::parameters.trainProfileGlobals;
-        }
-        if( isModified_trainProfilePositions ) {
-          target_parameters.trainProfilePositions =
-            base_parameters_modifier_t::parameters.trainProfilePositions;
-        }
-        if( isModified_trainGlobalsFirst ) {
-          target_parameters.trainGlobalsFirst =
-            base_parameters_modifier_t::parameters.trainGlobalsFirst;
-        }
-        if( isModified_minIterations ) {
-          target_parameters.minIterations =
-            base_parameters_modifier_t::parameters.minIterations;
-        }
-        if( isModified_maxIterations ) {
-          target_parameters.maxIterations =
-            base_parameters_modifier_t::parameters.maxIterations;
-        }
-        if( isModified_maxPositionCycles ) {
-          target_parameters.maxPositionCycles =
-            base_parameters_modifier_t::parameters.maxPositionCycles;
-        }
-        if( isModified_maxPositionCycles_sequence_identifiers ) {
-          target_parameters.maxPositionCycles_sequence_identifiers =
-            base_parameters_modifier_t::parameters.maxPositionCycles_sequence_identifiers;
-        }
-        if( isModified_maxPositionCycles_globals ) {
-          target_parameters.maxPositionCycles_globals =
-            base_parameters_modifier_t::parameters.maxPositionCycles_globals;
-        }
-        if( isModified_maxBaumWelchInverseScalar ) {
-          target_parameters.maxBaumWelchInverseScalar =
-            base_parameters_modifier_t::parameters.maxBaumWelchInverseScalar;
-        }
-        if( isModified_minBaumWelchInverseScalar ) {
-          target_parameters.minBaumWelchInverseScalar =
-            base_parameters_modifier_t::parameters.minBaumWelchInverseScalar;
-        }
-        if( isModified_baumWelchInverseScalarIncrement ) {
-          target_parameters.baumWelchInverseScalarIncrement =
-            base_parameters_modifier_t::parameters.baumWelchInverseScalarIncrement;
-        }
-        if( isModified_maxBaumWelchInverseScalar_sequence_identifiers ) {
-          target_parameters.maxBaumWelchInverseScalar_sequence_identifiers =
-            base_parameters_modifier_t::parameters.maxBaumWelchInverseScalar_sequence_identifiers;
-        }
-        if( isModified_minBaumWelchInverseScalar_sequence_identifiers ) {
-          target_parameters.minBaumWelchInverseScalar_sequence_identifiers =
-            base_parameters_modifier_t::parameters.minBaumWelchInverseScalar_sequence_identifiers;
-        }
-        if( isModified_baumWelchInverseScalarIncrement_sequence_identifiers ) {
-          target_parameters.baumWelchInverseScalarIncrement_sequence_identifiers =
-            base_parameters_modifier_t::parameters.baumWelchInverseScalarIncrement_sequence_identifiers;
-        }
-        if( isModified_maxBaumWelchInverseScalar_globals ) {
-          target_parameters.maxBaumWelchInverseScalar_globals =
-            base_parameters_modifier_t::parameters.maxBaumWelchInverseScalar_globals;
-        }
-        if( isModified_minBaumWelchInverseScalar_globals ) {
-          target_parameters.minBaumWelchInverseScalar_globals =
-            base_parameters_modifier_t::parameters.minBaumWelchInverseScalar_globals;
-        }
-        if( isModified_baumWelchInverseScalarIncrement_globals ) {
-          target_parameters.baumWelchInverseScalarIncrement_globals =
-            base_parameters_modifier_t::parameters.baumWelchInverseScalarIncrement_globals;
-        }
-        if( isModified_scorePercentChangeMinimum_iteration ) {
-          target_parameters.scorePercentChangeMinimum_iteration =
-            base_parameters_modifier_t::parameters.scorePercentChangeMinimum_iteration;
-        }
-        if( isModified_scorePercentChangeMinimum_position_cycle ) {
-          target_parameters.scorePercentChangeMinimum_position_cycle =
-            base_parameters_modifier_t::parameters.scorePercentChangeMinimum_position_cycle;
-        }
-        if( isModified_euclideanDistanceMinimum_iteration ) {
-          target_parameters.euclideanDistanceMinimum_iteration =
-            base_parameters_modifier_t::parameters.euclideanDistanceMinimum_iteration;
-        }
-        if( isModified_euclideanDistanceMinimum_position_cycle ) {
-          target_parameters.euclideanDistanceMinimum_position_cycle =
-            base_parameters_modifier_t::parameters.euclideanDistanceMinimum_position_cycle;
-        }
-        if( isModified_alwaysAccept ) {
-          target_parameters.alwaysAccept =
-            base_parameters_modifier_t::parameters.alwaysAccept;
-        }
-        if( isModified_useAlignmentProfiles ) {
-          target_parameters.useAlignmentProfiles =
-            base_parameters_modifier_t::parameters.useAlignmentProfiles;
-        }
-        if( isModified_proposeProfileLengthChanges ) {
-          target_parameters.proposeProfileLengthChanges =
-            base_parameters_modifier_t::parameters.proposeProfileLengthChanges;
-        }
-        if( isModified_proposeDeletingThreshold ) {
-          target_parameters.proposeDeletingThreshold =
-            base_parameters_modifier_t::parameters.proposeDeletingThreshold;
-        }
-        if( isModified_proposeInsertingThreshold ) {
-          target_parameters.proposeInsertingThreshold =
-            base_parameters_modifier_t::parameters.proposeInsertingThreshold;
-        }
-        if( isModified_proposeDeletingThreshold_increment ) {
-          target_parameters.proposeDeletingThreshold_increment =
-            base_parameters_modifier_t::parameters.proposeDeletingThreshold_increment;
-        }
-        if( isModified_proposeInsertingThreshold_increment ) {
-          target_parameters.proposeInsertingThreshold_increment =
-            base_parameters_modifier_t::parameters.proposeInsertingThreshold_increment;
-        }
-        if( isModified_proposeInsertingPreAlignThreshold ) {
-          target_parameters.proposeInsertingPreAlignThreshold =
-            base_parameters_modifier_t::parameters.proposeInsertingPreAlignThreshold;
-        }
-        if( isModified_proposeInsertingPostAlignThreshold ) {
-          target_parameters.proposeInsertingPostAlignThreshold =
-            base_parameters_modifier_t::parameters.proposeInsertingPostAlignThreshold;
-        }
-        if( isModified_proposeInsertingOccupancyThreshold ) {
-          target_parameters.proposeInsertingOccupancyThreshold =
-            base_parameters_modifier_t::parameters.proposeInsertingOccupancyThreshold;
-        }
-        if( isModified_useSensitiveThresholding ) {
-          target_parameters.useSensitiveThresholding =
-            base_parameters_modifier_t::parameters.useSensitiveThresholding;
-        }
-        if( isModified_increaseThresholdsForLengthChanges_startIteration ) {
-          target_parameters.increaseThresholdsForLengthChanges_startIteration =
-            base_parameters_modifier_t::parameters.increaseThresholdsForLengthChanges_startIteration;
-        }
-        if( isModified_increaseThresholdsForLengthChanges_minIncrement ) {
-          target_parameters.increaseThresholdsForLengthChanges_minIncrement =
-            base_parameters_modifier_t::parameters.increaseThresholdsForLengthChanges_minIncrement;
-        }
-        if( isModified_alwaysAccept_disallowThreshold_profileDistance_iteration ) {
-          target_parameters.alwaysAccept_disallowThreshold_profileDistance_iteration =
-            base_parameters_modifier_t::parameters.alwaysAccept_disallowThreshold_profileDistance_iteration;
-        }
-        if( isModified_numIterationsBetweenLengthChanges ) {
-          target_parameters.numIterationsBetweenLengthChanges =
-            base_parameters_modifier_t::parameters.numIterationsBetweenLengthChanges;
-        }
-        if( isModified_useUnconditionalBaumWelch ) {
-          target_parameters.useUnconditionalBaumWelch =
-            base_parameters_modifier_t::parameters.useUnconditionalBaumWelch;
-        }
-        if( isModified_baldiLearningRate ) {
-          target_parameters.baldiLearningRate =
-            base_parameters_modifier_t::parameters.baldiLearningRate;
-        }
-        if( isModified_baldiTemperature ) {
-          target_parameters.baldiTemperature =
-            base_parameters_modifier_t::parameters.baldiTemperature;
-        }
-        if( isModified_profileValueMinimum ) {
-          target_parameters.profileValueMinimum =
-            base_parameters_modifier_t::parameters.profileValueMinimum;
-        }
-        if( isModified_usePriors ) {
-          target_parameters.usePriors =
-            base_parameters_modifier_t::parameters.usePriors;
-        }
-        if( isModified_positionShouldBeTrained ) {
-          target_parameters.positionShouldBeTrained =
-            base_parameters_modifier_t::parameters.positionShouldBeTrained;
-        }
-        if( isModified_siegelMaxFindingThePeakAttempts_positions ) {
-          target_parameters.siegelMaxFindingThePeakAttempts_positions =
-            base_parameters_modifier_t::parameters.siegelMaxFindingThePeakAttempts_positions;
-        }
-        if( isModified_baldiHybrid ) {
-          target_parameters.baldiHybrid =
-            base_parameters_modifier_t::parameters.baldiHybrid;
-        }
-        if( isModified_siegelEpsilonScaleFactor ) {
-          target_parameters.siegelEpsilonScaleFactor =
-            base_parameters_modifier_t::parameters.siegelEpsilonScaleFactor;
-        }
-        if( isModified_unconditionalIsolatesGlobals ) {
-          target_parameters.unconditionalIsolatesGlobals =
-            base_parameters_modifier_t::parameters.unconditionalIsolatesGlobals;
-        }
-        if( isModified_siegelMaxRefiningThePeakSteps_positions ) {
-          target_parameters.siegelMaxRefiningThePeakSteps_positions =
-            base_parameters_modifier_t::parameters.siegelMaxRefiningThePeakSteps_positions;
-        }
-        if( isModified_siegelRefiningThePeakStepsConvergenceThreshold ) {
-          target_parameters.siegelRefiningThePeakStepsConvergenceThreshold =
-            base_parameters_modifier_t::parameters.siegelRefiningThePeakStepsConvergenceThreshold;
-        }
-        if( isModified_siegelMaxFindingTheGradientAttempts_positions ) {
-          target_parameters.siegelMaxFindingTheGradientAttempts_positions =
-            base_parameters_modifier_t::parameters.siegelMaxFindingTheGradientAttempts_positions;
-        }
-        if( isModified_siegelMinEpsilon ) {
-          target_parameters.siegelMinEpsilon =
-            base_parameters_modifier_t::parameters.siegelMinEpsilon;
-        }
       } // applyModifications( AnyParameters & )
 
   ////// Class galosh::ProfileTrainer ////
@@ -2393,7 +1168,7 @@ template <class ProfileType,
   ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::
     /**
      * Default constructor.  See reinitialize(..).
-     */  
+     */
     ProfileTrainer (
     ) :
       m_dynamic_programming(),
@@ -2417,7 +1192,7 @@ template <class ProfileType,
   ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::
     /**
      * Construct a profile trainer with the given profile and sequences.
-     */  
+     */
     ProfileTrainer (
       ProfileType * profile,
       vector<SequenceType> const & sequences
@@ -2445,7 +1220,7 @@ template <class ProfileType,
      * Construct a profile trainer with the given profile and sequences, and
      * the number of sequences to use (use the first num_sequences_to_use
      * sequences only).
-     */  
+     */
     ProfileTrainer (
       ProfileType * profile,
       vector<SequenceType> const & sequences,
@@ -2474,7 +1249,7 @@ template <class ProfileType,
      * Construct a profile trainer with the same profile, sequences, and number
      * of sequences to use as the given ProfileTrainer reference.  Note that
      * other members are not copied.
-     */  
+     */
     ProfileTrainer (
       ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType> const & copy_from
     ) :
@@ -2483,7 +1258,7 @@ template <class ProfileType,
       m_sequences( copy_from.m_sequences ),
       m_error( this ),
       m_sequence_count( copy_from.m_sequence_count )
-  {
+    {
       if( m_parameters.debug >= DEBUG_All ) {
         cout << "[debug] ProfileTrainer::<init>( ProfileTrainer const & )" << endl;
       } // End if DEBUG_All
@@ -2500,7 +1275,7 @@ template <class ProfileType,
   ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::
     /**
      * (Re)set the profile and reinitialize.
-     */  
+     */
     reinitialize (
       ProfileType * profile
     )
@@ -2533,7 +1308,7 @@ template <class ProfileType,
       m_startingProfile_position_cycle.reinitialize();
 
 #ifndef NDEBUG
-      // TODO :REMOVE 
+      // TODO :REMOVE
       m_forward_matrices.reinitialize();
 #endif // !NDEBUG
 
@@ -2627,7 +1402,7 @@ template <class ProfileType,
       // use the full forward matrices.
 
 #ifndef NDEBUG
-      // TODO :REMOVE 
+      // TODO :REMOVE
       m_forward_matrices.reinitialize(
         m_profile->length(),
         m_sequences,
@@ -2639,7 +1414,7 @@ template <class ProfileType,
         m_sequences,
         m_sequence_count
       );
-      
+
       m_forward_rows_2.reinitialize(
         m_sequences,
         m_sequence_count
@@ -2659,7 +1434,7 @@ template <class ProfileType,
           m_sequence_count
         );
       } // End if useUnconditionalBaumWelch
-      
+
       m_forward_rows_ptr = &m_forward_rows_1;
       m_prev_forward_rows_ptr = &m_forward_rows_2;
 
@@ -2698,12 +1473,12 @@ template <class ProfileType,
         m_sequences,
         m_sequence_count
       );
-      
+
       m_backward_rows_2.reinitialize(
         m_sequences,
         m_sequence_count
       );
-      
+
       m_backward_rows_ptr = &m_backward_rows_1;
       m_next_backward_rows_ptr = &m_backward_rows_2;
 
@@ -2743,7 +1518,7 @@ template <class ProfileType,
         m_unconditional_position_ententes_vector.resize( m_profile->length() ); // One for each row except the first
       } // End if useUnconditionalBaumWelch
 
-#ifdef ALLOW_BOLTZMANN_GIBBS      
+#ifdef ALLOW_BOLTZMANN_GIBBS
       if( m_trainingParameters.baldiLearningRate > 0 ) {
         if( m_trainingParameters.useUnconditionalBaumWelch ) {
           m_unconditional_baldi_position_boltzmann_gibbs_changes_vector.resize( m_profile->length() ); // One for each row except the first
@@ -2790,7 +1565,7 @@ template <class ProfileType,
             class SequenceResidueType,
             class InternalNodeType>
   GALOSH_INLINE_TRAIN
-    ScoreType
+  ScoreType
   ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::
     train ()
     {
@@ -2888,7 +1663,7 @@ template <class ProfileType,
       //cout << "second-to-last row for seq 0, calculated the new way, is " << ( *m_prev_forward_rows_ptr )[ 0 ] << endl;
 
       //m_scoreBeforeTraining = m_endingScore =
-      //  m_dynamic_programming.forward_score( 
+      //  m_dynamic_programming.forward_score(
       //    m_trainingParameters,
       //    *m_profile,
       //    m_sequences,
@@ -2958,7 +1733,7 @@ template <class ProfileType,
 
       ScoreType total_sequence_score = 0;
       ScoreType scaled_total_sequence_score = 0;
-      
+
       ProbabilityType tmp_prob = 0;
 
       double profile_distance_iteration = 0.0;
@@ -2969,7 +1744,7 @@ template <class ProfileType,
       // TODO: Why are pre-align insertions happening so much,
       // especially when the profile is too *long*? (TODO: Still?)
 
-      // 
+      //
       //bool increment_pre_align_insertion_threshold_with_nonconsecutive_uses = true;
       //bool increment_post_align_insertion_threshold_with_nonconsecutive_uses = true;
 
@@ -3188,7 +1963,7 @@ template <class ProfileType,
                  // TODO: REMOVE. TESTING. Note this is after updating m_iteration..
                  ( ubw_cbw_hybrid && ( ( m_iteration % 2 ) == 1 ) ) ? true :
                  (
-                   ( 
+                   (
                      !use_score_percent_change ||
                      (
                        // Note that this will only be evaluated if m_iteration
@@ -3236,7 +2011,7 @@ template <class ProfileType,
         //}
 
         if( true ) {
-        
+
           // TODO: REMOVE TEST. TESTING.
           if( !ubw_cbw_hybrid || ( ( m_iteration % 2 ) == 0 ) ) {
 
@@ -3361,7 +2136,7 @@ template <class ProfileType,
                 best_profile_score = m_endingScore;
               }
             }
-          
+
             // TODO: REMOVE.  TESTING.
             if(
               profile_length_changed_this_iteration
@@ -3391,7 +2166,7 @@ template <class ProfileType,
                   propose_inserting_threshold_increment;
                 propose_deleting_threshold +=
                   propose_deleting_threshold_increment;
-                          
+
                 if( cout_profile_length_changes ) {
                   cout << "Thresholds are being increased because the length changes didn't actually change the length.  propose_deleting_threshold increased to " << propose_deleting_threshold << " and propose_inserting_threshold increased to " << propose_inserting_threshold << "." << endl;
                 } // End if cout_profile_length_changes
@@ -3400,7 +2175,7 @@ template <class ProfileType,
                     ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
                     ( m_trainingParameters.verbosity < VERBOSITY_High )
                   ) ||
-                  ( m_trainingParameters.verbosity >= VERBOSITY_All ) 
+                  ( m_trainingParameters.verbosity >= VERBOSITY_All )
                 ) {
                   if(
                     ( propose_inserting_threshold == propose_inserting_prealign_threshold ) &&
@@ -3516,7 +2291,7 @@ template <class ProfileType,
                   ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
                   ( m_trainingParameters.verbosity < VERBOSITY_High )
                 ) ||
-                ( m_trainingParameters.verbosity >= VERBOSITY_All ) 
+                ( m_trainingParameters.verbosity >= VERBOSITY_All )
               ) {
                 if(
                   ( propose_inserting_threshold == propose_inserting_prealign_threshold ) &&
@@ -3571,7 +2346,7 @@ template <class ProfileType,
                 } // End if we've already reset
               } // End if cycle_detected_last_iteration && !prev_profile_length_changed_this_iteration
             } // End if !profile_length_changed_this_iteration && cycle_detected_this_iteration
-            
+
             // TODO: REMOVE.  TESTING.
             // If we didn't change lengths last iteration then reset cycle
             // detection stuffs.
@@ -3641,7 +2416,7 @@ template <class ProfileType,
             //) {
             //  if(
             //    false &&
-            //    ( ( ( ubw_cbw_hybrid ) ? static_cast<int>( m_iteration / 2 ) : m_iteration ) == 10 ) 
+            //    ( ( ( ubw_cbw_hybrid ) ? static_cast<int>( m_iteration / 2 ) : m_iteration ) == 10 )
             //  ) {
             //    // jump
             //    //  propose_inserting_threshold = .5;
@@ -3687,7 +2462,7 @@ template <class ProfileType,
             //    propose_inserting_threshold_increment;
             //  propose_deleting_threshold +=
             //    propose_deleting_threshold_increment;
-            //            
+            //
             //  if( cout_profile_length_changes ) {
             //    cout << "Thresholds are being increased because the iteration is a multiple of " << scale_threshold_increments_every_X_iterations << ".  propose_deleting_threshold increased to " << propose_deleting_threshold << " and propose_inserting_threshold increased to " << propose_inserting_threshold << "." << endl;
             //  } // End if cout_profile_length_changes
@@ -3696,7 +2471,7 @@ template <class ProfileType,
             //      ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
             //      ( m_trainingParameters.verbosity < VERBOSITY_High )
             //    ) ||
-            //    ( m_trainingParameters.verbosity >= VERBOSITY_All ) 
+            //    ( m_trainingParameters.verbosity >= VERBOSITY_All )
             //  ) {
             //    if(
             //      ( propose_inserting_threshold == propose_inserting_prealign_threshold ) &&
@@ -3732,10 +2507,10 @@ template <class ProfileType,
               min_deletion_fraction_passing_threshold_causing_a_cycle = 1;
             }
           } // End if m_trainingParameters.proposeProfileLengthChanges
-          
+
           // TODO: REMOVE.  TESTING.
           //cout << "percentChange: " << m_scorePercentChange;
-          
+
           if( ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
               ( m_trainingParameters.verbosity <  VERBOSITY_High ) ||
               m_trainingParameters.verbosity >= VERBOSITY_All ) {
@@ -3780,7 +2555,7 @@ template <class ProfileType,
 
           // TODO: REMOVE
           //cout << "iteration is " << ( ( ubw_cbw_hybrid ) ? static_cast<int>( m_iteration / 2 ) : m_iteration ) << "; training phase is " << static_cast<int>( m_trainingPhase ) << "." << endl;
-         
+
           for( m_position_cycle = 0;
                (
                 ( m_trainingParameters.useUnconditionalBaumWelch ? ( m_position_cycle == 0 ) : true ) && // This sez only do one position cycle when using unconditional BW.
@@ -3815,7 +2590,7 @@ template <class ProfileType,
 
             // Start over for this position training cycle..
             m_startingScore_position_cycle = m_endingScore;
-          
+
             // Remember the profile as it was.
             m_startingProfile_position_cycle.copyFrom( *m_profile );
 
@@ -3831,7 +2606,7 @@ template <class ProfileType,
               ].zero();
 #endif // DISALLOW_FLANKING_TRANSITIONS
             }
-          
+
             if( ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
                 ( m_trainingParameters.verbosity <  VERBOSITY_High ) ||
                 m_trainingParameters.verbosity >= VERBOSITY_All ) {
@@ -3873,7 +2648,7 @@ template <class ProfileType,
                 cout.flush();
               }
             }
-          
+
             // Foreach position of the profile, do the training steps.  The
             // forward matrix rows are offset by one from the profile positions.
             m_row_i = last_row;
@@ -3896,7 +2671,7 @@ template <class ProfileType,
                 cout << "[anchor_columns_iter_i=" << anchor_columns_iter_i << "]";
               }
             } // End if m_anchor_columns.m_storeEveryNthColumn > 0
-          
+
             // Actually if we are using unconditional bw and not training
             // globals, then we don't need to go through all the rows.
             if( ( m_trainingPhase == TRAINING_PHASE_Globals ) &&
@@ -3957,12 +2732,12 @@ template <class ProfileType,
                   anchor_columns_iter_i--;
                   cout << "[anchor_columns_iter_i=" << anchor_columns_iter_i << "]";
                 }
-              } // End if ( not the last row ) and m_anchor_columns.m_storeEveryNthColumn > 0 
+              } // End if ( not the last row ) and m_anchor_columns.m_storeEveryNthColumn > 0
 
               // Remember the score before we do any modifications to the profile.
               m_startingScore_position_step = m_endingScore;
 
-          
+
               if( m_trainingParameters.verbosity >=
                   VERBOSITY_High ) {
                 if( ( m_trainingPhase != TRAINING_PHASE_Positions ) ) {
@@ -3994,11 +2769,11 @@ template <class ProfileType,
                       //cout.flush();
                     } // End if m_row_i == last_row .. else if m_row_i == 0 .. else ..
                   } // End if useUnconditionalBaumWelch .. else ..
-                } else if( m_row_i > 0 ) { // if ( m_trainingPhase != TRAINING_PHASE_Positions ) .. else .. 
+                } else if( m_row_i > 0 ) { // if ( m_trainingPhase != TRAINING_PHASE_Positions ) .. else ..
                   cout <<
                     "===================================================" << endl;
-                  if( ( m_trainingParameters.positionShouldBeTrained != NULL ) &&
-                      !( *m_trainingParameters.positionShouldBeTrained )[ m_row_i - 1 ] ) {
+                  if( ( m_trainingParameters.positionShouldBeTrained.size() > 0 ) &&
+                      !m_trainingParameters.positionShouldBeTrained[ m_row_i - 1 ] ) {
                     cout << "Skipping profile position " << ( m_row_i - 1 ) << endl;
                   } else if( m_trainingParameters.useUnconditionalBaumWelch ) {
                     cout << "Calculating entente values for profile position " << ( m_row_i - 1 ) <<
@@ -4016,7 +2791,7 @@ template <class ProfileType,
                       endl;
                   }
                   cout << endl;
-                } // End if ( m_trainingPhase != TRAINING_PHASE_Positions ) .. else .. 
+                } // End if ( m_trainingPhase != TRAINING_PHASE_Positions ) .. else ..
               } // End if verbose
 
               if(
@@ -4035,8 +2810,8 @@ template <class ProfileType,
                 if( m_trainingPhase == TRAINING_PHASE_Positions ) {
                   if(
                     ( m_row_i > 0 ) &&
-                    ( m_trainingParameters.positionShouldBeTrained != NULL ) &&
-                    !( *m_trainingParameters.positionShouldBeTrained )[ m_row_i - 1 ]
+                    ( m_trainingParameters.positionShouldBeTrained.size() > 0 ) &&
+                    !m_trainingParameters.positionShouldBeTrained[ m_row_i - 1 ]
                   ) {
                     // We're skipping the (parent profile) training for this
                     // position ..
@@ -4051,7 +2826,7 @@ template <class ProfileType,
                     // safer, since the right scale might be tiny and we don't
                     // know that until doing the fist update.
                     m_position_entente.m_scalar = 0;
-                  
+
                     if(
                       m_trainingParameters.useAlignmentProfiles ||
                       m_trainingParameters.proposeProfileLengthChanges
@@ -4081,8 +2856,8 @@ template <class ProfileType,
                         min_deletion_fraction_passing_threshold = 1;
                         min_last_pos_deletion_fraction_passing_threshold = 1;
                       } // End if use_sensitive_threshold_increments
-                    } // end if m_trainingParameters.useAlignmentProfiles || m_trainingParameters.proposeProfileLengthChanges 
-                  
+                    } // end if m_trainingParameters.useAlignmentProfiles || m_trainingParameters.proposeProfileLengthChanges
+
                   } // End if we are skipping (parent profile) training for this position .. else ..
                 } // End if trainingPhase == TRAINING_PHASE_Positions
 
@@ -4091,7 +2866,7 @@ template <class ProfileType,
                 // Update the modifier ( The - 1 is because profile indices are
                 // offset by 1 from the forward matrix indices. )
                 //m_modifier.position( ( m_row_i - 1 ) );
-              
+
                 // Update the positions and backward_rows for this new position
                 if( m_trainingParameters.debug > DEBUG_None ) {
                   cout <<
@@ -4241,7 +3016,7 @@ template <class ProfileType,
                             m_anchor_columns.m_storeEveryNthColumn,
                             ( *m_prev_forward_rows_ptr )[ m_seq_i ]
                           );
-                          
+
                           if( m_trainingParameters.useRabinerScaling ) {
                             // Copy the rabiner scalars.
                             ( *m_prev_forward_rows_ptr )[ m_seq_i ].m_rabinerInverseScalar =
@@ -4250,7 +3025,7 @@ template <class ProfileType,
                               ( *tmp_matrices_iter )[ m_seq_i ].m_rabinerCumulativeInverseScalar;
                           } // End if useRabinerScaling
                         } // End if m_anchor_columns.m_storeEveryNthColumn > 0
-                    
+
                         m_dynamic_programming.forward_reverseCalculateRow(
                           m_trainingParameters,
                           *m_profile,
@@ -4272,7 +3047,7 @@ template <class ProfileType,
                           ( *m_forward_rows_ptr )[ m_seq_i ],
                           ( *m_prev_forward_rows_ptr )[ m_seq_i ]
                         );
-                    
+
                         if( false || ( m_parameters.debug >= DEBUG_All ) ) {
                           cout << endl;
                           // TODO: REMOVE
@@ -4283,7 +3058,7 @@ template <class ProfileType,
                         } // End if DEBUG_All
                         // Now use the new one.
                       } // End foreach m_seq_i
-                    } // End if ( m_row_i - 1 ) is an anchor row .. else .. 
+                    } // End if ( m_row_i - 1 ) is an anchor row .. else ..
                   } // End if ( row_i != 0 )
                 } // End if !forward_rows_are_already_rotated_and_calculated
 
@@ -4480,7 +3255,7 @@ template <class ProfileType,
 //                          alignment_profile_position_allseqs.zero();
 //                          alignment_profile_position_allseqs.m_scalar = 0;
 //                        } // End if starting over, reset alignment_profile_position_allseqs...
-//                        // 
+//                        //
 //                        //cout << "About to call (alignment_profile_position_allseqs:" << alignment_profile_position_allseqs << ") += " << alignment_profile_position << endl;
 //                        alignment_profile_position_allseqs +=
 //                          alignment_profile_position;
@@ -4862,7 +3637,7 @@ template <class ProfileType,
                              (
                               last_pos_insertion_fraction <
                               min_last_pos_insertion_fraction_passing_threshold
-                              ) 
+                              )
                           ) {
                             min_last_pos_insertion_fraction_passing_threshold =
                               last_pos_insertion_fraction;
@@ -4889,7 +3664,7 @@ template <class ProfileType,
                         } // End if insertion_fraction > propose_inserting_threshold
                       } // End if count_seqs_exceeding_alignment_profile_thresholds
 
-                      // 
+                      //
                       //cout << "About to call (alignment_profile_position_allseqs:" << alignment_profile_position_allseqs << ") += " << alignment_profile_position << endl;
                       alignment_profile_position_allseqs +=
                         alignment_profile_position;
@@ -4946,12 +3721,12 @@ template <class ProfileType,
                         //  alignment_profile_position,
                         //  m_position_entente
                         //);
-                      
+
                         // TODO: REMOVE
                         //cout << "[Row " << m_row_i << ", Sequence " << m_seq_i << "] ";
                         //cout << "m_position_entente (using alignment profile position) is now " << m_position_entente << endl;
                       } else { // if m_trainingParameters.useAlignmentProfiles .. else ..
-                      
+
                         // Note that we can't skip this, even if we're supposed
                         // to skip training the parent profile for this
                         // position, since we need the coefficients and the
@@ -4995,7 +3770,7 @@ template <class ProfileType,
 
                       } // End if m_trainingParameters.useAlignmentProfiles .. else ..
                     } // End if m_row_i > 0
-                    
+
                     if( m_parameters.debug >= DEBUG_All ) {
                       cout << "[debug] [Row " << m_row_i << ", Sequence " << m_seq_i << "] " <<
                         "Coeffs (just this sequence):" << m_coefficients_vector[ m_seq_i ] << endl;
@@ -5008,7 +3783,7 @@ template <class ProfileType,
                 } // End foreach m_seq_i
 
 
-                  
+
                 if( m_trainingPhase == TRAINING_PHASE_Globals ) {
                   // TODO: REMOVE
                   //cout << "[ " << m_row_i << " ] Now m_global_entente is " << m_global_entente << endl;
@@ -5046,19 +3821,19 @@ template <class ProfileType,
 #endif // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT
 #endif // !NDEBUG
                 } // End if TRAINING_PHASE_Globals
-                
+
                 //////////////////////////////////////////////////////
                 // Lengthadjust / Dynamic Model Surgery Stuff for allseqs
                 //
-                  
+
                 if(
                   m_trainingParameters.proposeProfileLengthChanges &&
                   ( m_trainingPhase == TRAINING_PHASE_Positions ) &&
                   (
                     ( m_row_i == 0 ) ||
                     !(
-                      ( m_trainingParameters.positionShouldBeTrained != NULL ) &&
-                      !( *m_trainingParameters.positionShouldBeTrained )[ m_row_i - 1 ]
+                      ( m_trainingParameters.positionShouldBeTrained.size() > 0 ) &&
+                      !m_trainingParameters.positionShouldBeTrained[ m_row_i - 1 ]
                     )
                   ) &&
                   ( ubw_cbw_hybrid ? ( ( m_iteration % 2 ) == 0 ) : true ) &&
@@ -5072,7 +3847,7 @@ template <class ProfileType,
                   //  cout << "[ " << m_row_i << " ] m_position_entente is " << m_position_entente << endl;
                   //  cout << "[ " << m_row_i << " ] unscaled m_position_entente is " << m_position_entente.createUnscaledCopy() << endl;
                   //}
-                
+
                   insertion_fraction_exceeds_threshold = false;
                   if( m_row_i != ( last_row - 1 ) ) {
                     // We need to remember what we learned from last_row when
@@ -5148,8 +3923,8 @@ template <class ProfileType,
                         } // End checking if we can insert here.
                       } // End if m_row_i == last_row .. else ..
                     } else { // if count_seqs_exceeding_alignment_profile_thresholds .. else ..
-                      // Then instead use the alignment_profile_position_allseqs 
-                
+                      // Then instead use the alignment_profile_position_allseqs
+
                       if( m_row_i == 0 ) {
                         // Note that we're only using the insertion _open_, which we've tricksily stored separately from the insertion extension.
                         // Sanity check.  Since there are m_sequence_count sequences, each of which has a 1.0 in its B->M cell, the total of B->M should be that count.
@@ -5195,7 +3970,7 @@ template <class ProfileType,
                         assert( insertion_fraction >= -1E-5 );
                         assert( ( 1.0 - insertion_fraction ) > -1E-5 );
                       }
-                
+
                       if( m_row_i == last_row ) {
                         // TODO: REMOVE.
                         if( last_pos_insertion_fraction > largest_insertion_fraction ) {
@@ -5247,7 +4022,7 @@ template <class ProfileType,
                       } // End if m_row_i == last_row .. else ..
 
                     } // End if count_seqs_exceeding_alignment_profile_thresholds .. else ..
-  
+
                     // Wait to do last row indels until last_row - 1.
                     // NOTE: Last row changes take precedence over
                     // second-to-last-row changes.
@@ -5259,9 +4034,9 @@ template <class ProfileType,
                           alignment_profile_position_allseqs;
                       }
                     }
-  
+
                   } // End if ( m_profile->length() < max_profile_length ) (if we should consider adding a new position here ..)
-  
+
                   deletion_fraction_exceeds_threshold = false;
                   if( m_row_i != ( last_row - 1 ) ) {
                     // We need to remember what we learned from last_row when
@@ -5301,7 +4076,7 @@ template <class ProfileType,
                             }
                           } // End if last_pos_deletion_fraction > propose_deleting_threshold
                         } // End if ( m_row_i == ( last_row - 1 ) )
-                      
+
                         if( cout_indel_fractions ) {
                           cout << "\t Num seqs exceeding deletion threshold: " << num_seqs_exceeding_deletion_threshold << endl;
                           cout << "\t\t fraction is " << ( ( double )num_seqs_exceeding_deletion_threshold / m_sequence_count ) << endl;
@@ -5361,7 +4136,7 @@ template <class ProfileType,
                           }
 
                         } // End if ( m_row_i == ( last_row - 1 ) )
-                    
+
 #if defined( USE_DEL_IN_DEL_OUT ) && !defined( USE_SWENTRY_SWEXIT )
                         deletion_fraction =
                           toDouble( ( alignment_profile_position_allseqs[ Transition::fromDeletion ].total() + alignment_profile_position_allseqs[ Transition::fromDeletionIn ].total() + alignment_profile_position_allseqs[ Transition::fromDeletionOut ].total() ) / ( ( alignment_profile_position_allseqs[ Transition::fromMatch ].total() + alignment_profile_position_allseqs[ Transition::fromDeletion ].total() + alignment_profile_position_allseqs[ Transition::fromDeletionIn ].total() + alignment_profile_position_allseqs[ Transition::fromDeletionOut ].total() ) ) );
@@ -5375,7 +4150,7 @@ template <class ProfileType,
                           largest_deletion_fraction = deletion_fraction;
                           largest_deletion_fraction_row = m_row_i;
                         }
-  
+
                         if( cout_indel_fractions ) {
                           cout << "[ " << m_row_i << " ] Deletion fraction: " << deletion_fraction << endl;
                         }
@@ -5399,7 +4174,7 @@ template <class ProfileType,
                       } // End if count_seqs_exceeding_alignment_profile_thresholds .. else ..
                     } // ( m_row_i < last_row ) && ( m_row_i > 0 )
                   } // End if m_profile->length() > min_profile_length
-                  
+
                   if( m_row_i != last_row ) { // postpone length changes until row last_pos - 1
 
 
@@ -5423,7 +4198,7 @@ template <class ProfileType,
                       insertion_fraction_exceeds_threshold = false;
                       deletion_fraction_exceeds_threshold = false;
                     }
-                    
+
                     // Set up the *_pos_i values (the position-to-be-removed or
                     // the position-to-be-inserted)
                     if(
@@ -5436,7 +4211,7 @@ template <class ProfileType,
                       propose_inserting_rpos_i = numeric_limits<uint32_t>::max();
                     } else if( insertion_fraction_exceeds_threshold ) {
                       propose_inserting_pos_i = m_row_i;
-                      propose_inserting_rpos_i = 
+                      propose_inserting_rpos_i =
                         ( m_profile->length() - propose_inserting_pos_i );
                     } else {
                       // Unused if nothing exceeds threshold.
@@ -5453,14 +4228,14 @@ template <class ProfileType,
                       propose_deleting_rpos_i = 0;
                     } else if( deletion_fraction_exceeds_threshold ) {
                       propose_deleting_pos_i = ( m_row_i - 1 );
-                      propose_deleting_rpos_i = 
+                      propose_deleting_rpos_i =
                         ( m_profile->length() - 1 - propose_deleting_pos_i );
                     } else {
                       // Unused if nothing exceeds threshold.
                       propose_deleting_pos_i = numeric_limits<uint32_t>::max();
                       propose_deleting_rpos_i = numeric_limits<uint32_t>::max();
                     }
-                    
+
                     // Check for cycles
                     cycle_detected_insertions = false;
                     cycle_detected_deletions = false;
@@ -5526,7 +4301,7 @@ template <class ProfileType,
                       ) {
                         cycle_detected_deletions = true;
                         fancy_cycle_detected_deletions = true;
-                    
+
                         // We should never be calling it a cycle if we're
                         // already at max threshold, right?
                         // TODO: REMOVE.
@@ -5570,14 +4345,14 @@ template <class ProfileType,
                       ) {
                         cycle_detected_insertions = true;
                         fancy_cycle_detected_insertions = true;
-                    
+
                         // We should never be calling it a cycle if we're
                         // already at max threshold, right?
                         // TODO: REMOVE.
                         assert( ( ( propose_inserting_pos_i == 0 ) ? propose_inserting_prealign_threshold : ( ( propose_inserting_pos_i == last_row ) ? propose_inserting_postalign_threshold : propose_inserting_threshold ) ) <= 1.0 );
                       } // End if( last_inserted_pos_i == propose_inserting_pos_i )
                     } // End if last_pos_insertion_fraction_exceeds_threshold || insertion_fraction_exceeds_threshold
-                    
+
                     if( cycle_detected_insertions || cycle_detected_deletions ) {
                       if( !just_caught_preAlign_cycle ) {
                         if( cout_profile_length_changes ) {
@@ -5599,7 +4374,7 @@ template <class ProfileType,
                             ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
                             ( m_trainingParameters.verbosity < VERBOSITY_High )
                           ) ||
-                          ( m_trainingParameters.verbosity >= VERBOSITY_All ) 
+                          ( m_trainingParameters.verbosity >= VERBOSITY_All )
                         ) {
                           cout << "cycle@";
                           if( cycle_detected_insertions ) {
@@ -5640,7 +4415,7 @@ template <class ProfileType,
                               cout << "i:" << insertion_fraction;
                             }
                           } // End if count_seqs_exceeding_alignment_profile_thresholds .. else ..
-                        } // End if verbose  
+                        } // End if verbose
                         if( use_sensitive_threshold_increments ) {
                           if(
                             cycle_detected_insertions &&
@@ -5657,7 +4432,7 @@ template <class ProfileType,
                                 ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
                                 ( m_trainingParameters.verbosity < VERBOSITY_High )
                               ) ||
-                              ( m_trainingParameters.verbosity >= VERBOSITY_All ) 
+                              ( m_trainingParameters.verbosity >= VERBOSITY_All )
                             ) {
                               cout << "minCycleThreshold@I:" << min_insertion_fraction_passing_threshold_causing_a_cycle;
                             } // End if verbose
@@ -5676,7 +4451,7 @@ template <class ProfileType,
                                 ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
                                 ( m_trainingParameters.verbosity < VERBOSITY_High )
                               ) ||
-                              ( m_trainingParameters.verbosity >= VERBOSITY_All ) 
+                              ( m_trainingParameters.verbosity >= VERBOSITY_All )
                             ) {
                               cout << "minCycleThreshold@i:" << min_insertion_fraction_passing_threshold_causing_a_cycle;
                             } // End if verbose
@@ -5696,7 +4471,7 @@ template <class ProfileType,
                                   ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
                                   ( m_trainingParameters.verbosity < VERBOSITY_High )
                                 ) ||
-                                ( m_trainingParameters.verbosity >= VERBOSITY_All ) 
+                                ( m_trainingParameters.verbosity >= VERBOSITY_All )
                               ) {
                                 cout << "minCycleThreshold@D:" << min_deletion_fraction_passing_threshold_causing_a_cycle;
                               } // End if verbose
@@ -5714,7 +4489,7 @@ template <class ProfileType,
                                   ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
                                   ( m_trainingParameters.verbosity < VERBOSITY_High )
                                 ) ||
-                                ( m_trainingParameters.verbosity >= VERBOSITY_All ) 
+                                ( m_trainingParameters.verbosity >= VERBOSITY_All )
                               ) {
                                 cout << "minCycleThreshold@d:" << min_deletion_fraction_passing_threshold_causing_a_cycle;
                               } // End if verbose
@@ -5729,7 +4504,7 @@ template <class ProfileType,
                             propose_inserting_threshold_increment;
                           propose_deleting_threshold +=
                             propose_deleting_threshold_increment;
-                          
+
                           if( cout_profile_length_changes ) {
                             cout << "  propose_deleting_threshold increased to " << propose_deleting_threshold << " and propose_inserting_threshold increased to " << propose_inserting_threshold << ".";
                           } // End if cout_profile_length_changes
@@ -5738,7 +4513,7 @@ template <class ProfileType,
                               ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
                               ( m_trainingParameters.verbosity < VERBOSITY_High )
                             ) ||
-                            ( m_trainingParameters.verbosity >= VERBOSITY_All ) 
+                            ( m_trainingParameters.verbosity >= VERBOSITY_All )
                           ) {
                             if(
                               ( propose_inserting_threshold == propose_inserting_prealign_threshold ) &&
@@ -5764,7 +4539,7 @@ template <class ProfileType,
                         cycle_detected_this_iteration = true;
                       } // End if !just_caught_preAlign_cycle
                     } //else // End if cycle_detected_insertions || cycle_detected_deletions
-                    if( 
+                    if(
                     // TODO:REMOVE
                        !fancy_cycle_detected_deletions &&
                        ( just_caught_preAlign_cycle || !cycle_detected_deletions || ( cycle_detected_deletions && cycle_detected_insertions && ( count_seqs_exceeding_alignment_profile_thresholds ? ( ( last_pos_deletion_fraction_exceeds_threshold ? ( ( double )num_seqs_exceeding_last_pos_deletion_threshold / m_sequence_count ) : ( ( double )num_seqs_exceeding_deletion_threshold / m_sequence_count ) ) > ( ( last_pos_insertion_fraction_exceeds_threshold ? ( ( double )num_seqs_exceeding_last_pos_insertion_threshold / m_sequence_count ) : ( ( double )num_seqs_exceeding_insertion_threshold / m_sequence_count ) ) ) ) : ( ( last_pos_deletion_fraction_exceeds_threshold ? last_pos_deletion_fraction : deletion_fraction ) > ( ( last_pos_insertion_fraction_exceeds_threshold ? last_pos_insertion_fraction : insertion_fraction ) ) ) ) ) ) &&
@@ -5781,7 +4556,7 @@ template <class ProfileType,
                       //    last_length_change_was_insertion
                       //  ) ||
                       //  (
-                      //    ( propose_deleting_pos_i == 0 ) && 
+                      //    ( propose_deleting_pos_i == 0 ) &&
                       //    // redundant: ( last_inserted_pos_i == 0 ) &&
                       //    ( lengthadjust_position_creation_iters[ 0 ] == ( ( ubw_cbw_hybrid ) ? static_cast<int>( m_iteration / 2 ) : m_iteration ) )
                       //  )
@@ -5789,7 +4564,7 @@ template <class ProfileType,
                     ) {
                       have_deleted_a_pos = true;
                       if(
-                        ( propose_deleting_pos_i == 0 ) && 
+                        ( propose_deleting_pos_i == 0 ) &&
                         // redundant: ( last_inserted_pos_i == 0 ) &&
                         ( lengthadjust_position_creation_iters[ 0 ] == ( ( ubw_cbw_hybrid ) ? static_cast<int>( m_iteration / 2 ) : m_iteration ) )
                       ) {
@@ -5808,7 +4583,7 @@ template <class ProfileType,
                             ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
                             ( m_trainingParameters.verbosity < VERBOSITY_High )
                           ) ||
-                          ( m_trainingParameters.verbosity >= VERBOSITY_All ) 
+                          ( m_trainingParameters.verbosity >= VERBOSITY_All )
                         ) {
                           cout << "&d0";
                           // TODO: REMOVE
@@ -5837,7 +4612,7 @@ template <class ProfileType,
                                 ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
                                 ( m_trainingParameters.verbosity < VERBOSITY_High )
                               ) ||
-                              ( m_trainingParameters.verbosity >= VERBOSITY_All ) 
+                              ( m_trainingParameters.verbosity >= VERBOSITY_All )
                             ) {
                               cout << "minCycleThreshold@i:" << min_insertion_fraction_passing_threshold_causing_a_cycle;
                             } // End if verbose
@@ -5856,7 +4631,7 @@ template <class ProfileType,
                                 ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
                                 ( m_trainingParameters.verbosity < VERBOSITY_High )
                               ) ||
-                              ( m_trainingParameters.verbosity >= VERBOSITY_All ) 
+                              ( m_trainingParameters.verbosity >= VERBOSITY_All )
                             ) {
                               cout << "minCycleThreshold@d:" << min_deletion_fraction_passing_threshold_causing_a_cycle;
                             } // End if verbose
@@ -5870,7 +4645,7 @@ template <class ProfileType,
                             propose_inserting_threshold_increment;
                           propose_deleting_threshold +=
                             propose_deleting_threshold_increment;
-                    
+
                           if( cout_profile_length_changes ) {
                             cout << "  propose_deleting_threshold increased to " << propose_deleting_threshold << " and propose_inserting_threshold increased to " << propose_inserting_threshold << ".";
                           } // End if cout_profile_length_changes
@@ -5879,7 +4654,7 @@ template <class ProfileType,
                               ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
                               ( m_trainingParameters.verbosity < VERBOSITY_High )
                             ) ||
-                            ( m_trainingParameters.verbosity >= VERBOSITY_All ) 
+                            ( m_trainingParameters.verbosity >= VERBOSITY_All )
                           ) {
                             if(
                               ( propose_inserting_threshold == propose_inserting_prealign_threshold ) &&
@@ -5903,7 +4678,7 @@ template <class ProfileType,
                           cout.flush();
                         }
                         cycle_detected_this_iteration = true;
-                    
+
                         // Revert to previous last_inserted_pos_i,
                         // length_before_last_insertion,
                         // last_length_change_was_*, and
@@ -5919,7 +4694,7 @@ template <class ProfileType,
                           !prev_to_last_length_change_was_insertion;
                         profile_length_changed_this_iteration =
                           prev_profile_length_changed_this_iteration;
-                    
+
                         // And keep the old last_deleted_pos_i stuff.
                         // And keep the old last_deleted_pos_i and
                         // length_before_last_deletion stuff.
@@ -5982,7 +4757,7 @@ template <class ProfileType,
                           cout.flush();
                         }
                       } // End if verbose
-                    
+
                       // First shorten the profile.
                       //cout << "\t\tOld profile: " << *m_profile << endl;
                       m_profile->erase(
@@ -5992,7 +4767,7 @@ template <class ProfileType,
                       if( cout_profile_length_changes ) {
                         cout << "\t\tNew profile length: " << m_profile->length() << endl;
                       }
-                    
+
 #if defined( USE_DEL_IN_DEL_OUT ) && !defined( USE_SWENTRY_SWEXIT )
                       // Also shorten the scaled match distributions.
                       // Technically the match distributions after this
@@ -6006,7 +4781,7 @@ template <class ProfileType,
                         );
                       } // End foreach tmp_pos_i
 #endif // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT
-                          
+
                       if( m_trainingParameters.useUnconditionalBaumWelch ) {
                         m_unconditional_position_ententes_vector.erase(
                           m_unconditional_position_ententes_vector.begin() + propose_deleting_pos_i
@@ -6019,16 +4794,16 @@ template <class ProfileType,
                         } // End if baldiLearningRate > 0
 #endif // ALLOW_BOLTZMANN_GIBBS
                      } // End if useUnconditionalBaumWelch
-                         
+
                      // Also resize the starting profiles? No.  They'll be
                      // reset when they need to be.
-                         
+
                      // Resize the forward matrices?  Nah, it doesn't hurt
                      // to have them be too long..
-                   
+
                      // UPDATE: If we ever do put the forward matrices back,
                      // then we should shrink them here.
-                   
+
                      // Shrink the anchor columns.
                      if(
                        ( m_anchor_columns.m_storeEveryNthColumn > 0 ) &&
@@ -6038,7 +4813,7 @@ template <class ProfileType,
                          // Remove the last element.
                          anchor_columns_iter = m_anchor_columns.end();
                          anchor_columns_iter--;
-                   
+
                          m_anchor_columns.erase(
                            anchor_columns_iter
                          );
@@ -6055,16 +4830,16 @@ template <class ProfileType,
                          // delete.  (All rows of anchor columns after
                          // the one associated with the deleted
                          // position are bogus anyway.)
-                   
+
                          tmp_matrices_iter = m_anchor_columns.end();
                          tmp_matrices_iter--;
                          assert( anchor_columns_iter != tmp_matrices_iter );
-                   
+
                          m_anchor_columns.erase(
                            anchor_columns_iter
                          );
                          // The iterator was just invalidated..
-                   
+
                          anchor_columns_iter = m_anchor_columns.begin();
                          advance( anchor_columns_iter, ( propose_deleting_pos_i + 1 ) );
                          if( cout_anchor_columns_iter_changes ) {
@@ -6075,12 +4850,12 @@ template <class ProfileType,
                        // After deleting, the anchor_columns_iter points to
                        // the RowVector just after the one we've
                        // deleted.
-                   
+
                        // That one -- and all subsequent RowVectors -- are
                        // bogus now, but it doesn't matter since we're moving
                        // backwards through the rows.
                      }  // End if m_anchor_columns.m_storeEveryNthColumn > 0
-                   
+
                      // Shrink the anchor rows if there's one fewer now.
                      if(
                        // We remove an anchor row if the new length changes
@@ -6094,7 +4869,7 @@ template <class ProfileType,
                          anchor_rows_iter =
                            m_anchor_rows.end();
                          anchor_rows_iter--;
-                   
+
                          m_anchor_rows.erase(
                            anchor_rows_iter
                          );
@@ -6110,7 +4885,7 @@ template <class ProfileType,
                          // matter which one we delete. (All anchor rows after
                          // the one associated with the deleted position are
                          // bogus anyway.)
-                   
+
                          // TODO: REMOVE Unless we're removing the last
                          // position, the number of anchor rows shouldn't
                          // change when the current anchor row is the last
@@ -6120,7 +4895,7 @@ template <class ProfileType,
                          tmp_matrices_iter = m_anchor_rows.end();
                          tmp_matrices_iter--;
                          assert( anchor_rows_iter != tmp_matrices_iter );
-                   
+
                          // Note that the anchor_rows_iter won't change.  We
                          // want to be pointing to the anchor row associated
                          // with the position just after the deleted position,
@@ -6144,7 +4919,7 @@ template <class ProfileType,
                          // After deleting, the anchor_rows_iter points to the
                          // anchor row associated with the position just after
                          // the position-to-be-deleted .
-  
+
                          // But see below where we increment the anchor_rows_iter...
                        } // End if propose_deleting_pos_i == ( m_row_i - 1 ) .. else ..
                      } else { // if we should remove an anchor row .. else ..
@@ -6177,7 +4952,7 @@ template <class ProfileType,
                        //    cout << "[anchor_rows_iter_i=" << anchor_rows_iter_i << "]";
                        //  }
                        } // else it's the same as the current one, so do nothing.
-                   
+
                      } // End if we should remove an anchor row .. else ..
 
   #if defined( USE_DEL_IN_DEL_OUT ) && !defined( USE_SWENTRY_SWEXIT )
@@ -6193,7 +4968,7 @@ template <class ProfileType,
                           ) {
                             tmp_matrices_iter2 = m_anchor_columns.begin();
                           }
-                      
+
                           swap = false;
                           for( uint32_t row_i = 0; row_i <= propose_deleting_pos_i; row_i++ ) {
                             if(
@@ -6210,10 +4985,10 @@ template <class ProfileType,
                             ) {
                               tmp_matrices_iter2++;
                             }
-                      
+
                             // Every other time, we must swap which forward row is current.
                             swap = !swap;
-                      
+
                             for( m_seq_i = 0; m_seq_i < m_sequence_count; m_seq_i++ ) {
                               m_dynamic_programming.forward_calculateRow(
                                 m_trainingParameters,
@@ -6254,7 +5029,7 @@ template <class ProfileType,
                                 ( *tmp_matrices_iter )[ m_seq_i ] =
                                   ( swap ? ( *m_prev_forward_rows_ptr ) : ( *m_forward_rows_ptr ) )[ m_seq_i ];
                               } // End if storing anchor rows too and this is an anchor row
-                      
+
                               if( m_trainingParameters.useRabinerScaling ) {
                                 if( row_i == 0 ) {
                                   ( swap ? ( *m_prev_forward_rows_ptr )[ m_seq_i ] : ( *m_forward_rows_ptr )[ m_seq_i ] ).m_rabinerCumulativeInverseScalar =
@@ -6285,7 +5060,7 @@ template <class ProfileType,
                                     ( swap ? ( *m_prev_forward_rows_ptr ) : ( *m_forward_rows_ptr ) )[ m_seq_i ].m_rabinerCumulativeInverseScalar;
                                 } // End if storing anchor rows too and this is an anchor row
                               } // End if useRabinerScaling
-                      
+
                             } // End foreach sequence.
                           } // End foreach row up to the one just before the
                             // deleted one,, recalculate the forward rows.
@@ -6299,7 +5074,7 @@ template <class ProfileType,
                         } else { // !do_not_recalculate_all_forward_rows_during_lengthadjust .. else ..
 #else // !USE_DEL_IN_DEL_OUT
                      if( true ) {
-#endif // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT .. else ..                    
+#endif // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT .. else ..
                         // But we may need to recalculate forward rows whose
                         // calculation depended on their row position.  This
                         // applies to the first, second, and last rows only;
@@ -6310,9 +5085,9 @@ template <class ProfileType,
                         // first pos, since it would get done anyway on the
                         // next iteration's forward row rotation.
                         if(
-                          ( propose_deleting_pos_i == ( last_row - 1 ) )
+                           propose_deleting_pos_i == ( last_row - 1 )
 #if defined( USE_DEL_IN_DEL_OUT ) && !defined( USE_SWENTRY_SWEXIT )
-                            || true
+                           || true
 #endif // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT
                         ) {
                           // When deleting the last pos, the current row is
@@ -6359,7 +5134,7 @@ template <class ProfileType,
                                ( m_anchor_columns.m_storeEveryNthColumn > 0 ) &&
                                ( m_anchor_rows.m_storeEveryNthRow > 1 )
                              ) {
-                               if( propose_deleting_pos_i == ( last_row - 1 ) ) { 
+                               if( propose_deleting_pos_i == ( last_row - 1 ) ) {
                                  // Note that we know that propose_deleting_pos_i is
                                  // last_row - 1, which is what we set it to above
                                  // -- so the anchor_columns_iter points to the
@@ -6388,7 +5163,7 @@ template <class ProfileType,
                                // Note that we know & utilize the fact that the
                                // anchor row associated with the now-final
                                // position is the final anchor row, always.
-                     
+
                                // temporarily decrement it...
                                if( propose_deleting_pos_i == ( last_row - 1 ) ) {
                                  // TODO: REMOVE
@@ -6398,7 +5173,7 @@ template <class ProfileType,
                                }
                                tmp_matrices_iter = anchor_rows_iter;
                                tmp_matrices_iter--;
-                     
+
                                ( *tmp_matrices_iter )[ m_seq_i ] =
                                  ( *m_forward_rows_ptr )[ m_seq_i ];
                                if( m_trainingParameters.useRabinerScaling ) {
@@ -6416,7 +5191,7 @@ template <class ProfileType,
                            forward_rows_are_already_rotated_and_calculated = true;
                          } // End if propose_deleting_pos_i == ( last_row - 1 ) (or maybe true)
                        } // End if true (or maybe if do_not_recalculate_all_forward_rows_during_lengthadjust)
-                           
+
                        if( propose_deleting_pos_i == ( last_row - 1 ) ) {
                          // These won't be decremented, since m_row_i will be
                          // last_row the next time around.  Pointing to the
@@ -6438,16 +5213,16 @@ template <class ProfileType,
                              cout << "[anchor_columns_iter_i=" << anchor_columns_iter_i << "]";
                            }
                          }  // End if m_anchor_columns.m_storeEveryNthColumn > 0
-                     
+
                          // Both of these will be decremented, but it'll end
                          // up doing the right thing: starting the whole
                          // position cycle over...
                          m_row_i = last_row;
                        } // End if propose_deleting_pos_i == ( last_row - 1 )
-                     
+
                        // Lastly, we need to revert to the previous
                        // backward_rows..
-                     
+
                        // We set this because we'll reuse the current backward_row and prev_backward_row (but see below)
                        backward_rows_are_already_rotated_and_calculated = true;
 
@@ -6462,7 +5237,7 @@ template <class ProfileType,
                        // distances from the end -- which is unaffected by
                        // removing this position.  We're now treating it as
                        // the backward row for m_row_i.
-                     
+
                        // The only time we need to *actually* recompute the backward
                        // row is when we just deleted the last position --
                        // because then there is nothing in the backward row
@@ -6472,7 +5247,7 @@ template <class ProfileType,
                        // forward_score(..) method, below.
                        if( ( propose_deleting_pos_i == 0 ) || ( propose_deleting_pos_i == ( last_row - 1 ) ) ) {
                          // We don't have to do it again next time 'round
-                     
+
                          for( m_seq_i = 0; m_seq_i < m_sequence_count; m_seq_i++ ) {
                            m_dynamic_programming.backward_calculateRow(
                              m_trainingParameters,
@@ -6492,12 +5267,12 @@ template <class ProfileType,
                             );
                          } // End foreach seq_i
                        } // End if ( propose_deleting_pos_i == 0 || ( last_row - 1 ) )
-                      
+
                       // If we don't alwaysAccept, then we need to
                       // recalculate the score, so we know if we have an
                       // improvement next time (Note that we can't reject the
                       // length change; this is for the next iteration...).
-                    
+
                       // TODO: PUT BACK.  TESTING.
                       //if( !( !disallow_alwaysAccept && m_trainingParameters.alwaysAccept ) ) {
                       if( true ) {
@@ -6508,7 +5283,7 @@ template <class ProfileType,
                         // don't need to recalculate it after removing *this*
                         // profile position, before calculating the score.
                         m_endingScore =
-                          m_dynamic_programming.forward_score( 
+                          m_dynamic_programming.forward_score(
                             m_trainingParameters,
                             *m_profile,
                             m_sequence_count,
@@ -6525,11 +5300,11 @@ template <class ProfileType,
                           );
                         // TODO: REMOVE
                         //cout << "(1) Ending score, calculated the new way, is " << m_endingScore << endl;
-                    
+
                         // TODO: REMOVE?
                         assert( !isnan( m_endingScore ) );
                       } // End if !alwaysAccept, recalculate the score(s)
-                    
+
                       if( !backward_rows_are_already_rotated_and_calculated ) {
                         // Rotate the backward rows to account for the
                         // deletion.  Note that they will be rotated again on
@@ -6542,7 +5317,7 @@ template <class ProfileType,
                         m_temp_backward_rows_ptr = m_backward_rows_ptr;
                         m_backward_rows_ptr = m_next_backward_rows_ptr;
                         m_next_backward_rows_ptr = m_temp_backward_rows_ptr;
-                    
+
                         // TODO: Do I need to do this when propose_deleting_pos_i == 0 too?
                         if( m_trainingParameters.useRabinerScaling ) {
                           // The backward rows were scaled by the
@@ -6562,14 +5337,14 @@ template <class ProfileType,
                               //m_forward_matrices[ ( propose_deleting_pos_i + 1 ) - 1 ][ m_seq_i ].m_rabinerInverseScalar;
                               //m_forward_matrices[ ( forward_rows_are_already_rotated_and_calculated ? m_row_i : ( m_row_i - 1 ) ) ][ m_seq_i ].m_rabinerInverseScalar;
                               ( forward_rows_are_already_rotated_and_calculated ? ( *m_forward_rows_ptr ) : ( *m_prev_forward_rows_ptr ) )[ m_seq_i ].m_rabinerInverseScalar;
-                    
+
                             // TODO: Why not just change the scalar (and not
                             // actually scale the data): isn't this more likely
                             // to result in underflow or overflow?
-                    
+
                             // Rescale it to the new scale.
                             ( *m_backward_rows_ptr )[ m_seq_i ] *= scale_ratio;
-                            
+
                             // Note the new scale.
                             ( *m_backward_rows_ptr )[ m_seq_i ].m_rabinerInverseScalar =
                             //////m_forward_matrices[ ( propose_deleting_pos_i + 1 ) - 1 ][ m_seq_i ].m_rabinerInverseScalar;
@@ -6581,11 +5356,11 @@ template <class ProfileType,
                                 ( *m_backward_rows_ptr )[ m_seq_i ].m_rabinerCumulativeInverseScalar /=
                                 scale_ratio;
                             } // End if forward_rows_are_already_rotated_and_calculated .. else ..
-                          } // End foreach sequence, fix the backward row's rabinerInverseScalars.. 
+                          } // End foreach sequence, fix the backward row's rabinerInverseScalars..
                         } // End if useRabinerScaling
-                    
+
                       } // End if !backward_rows_are_already_rotated_and_calculated
-                    
+
                       // Keep track of the creation time. (In this case,
                       // un-keep track).
                       lengthadjust_position_creation_iters.erase(
@@ -6617,7 +5392,7 @@ template <class ProfileType,
                       //    anchor_columns_iter_i++;
                       //    cout << "[anchor_columns_iter_i=" << anchor_columns_iter_i << "]";
                       //  }
-                      //} // End if ( not the last row ) and m_anchor_columns.m_storeEveryNthColumn > 0 
+                      //} // End if ( not the last row ) and m_anchor_columns.m_storeEveryNthColumn > 0
 
                       /// NOTE that I've commented this out.  See above (look for "screw it").
                       // Okay so at this point we've got the anchor_rows_iter
@@ -6640,14 +5415,14 @@ template <class ProfileType,
                       //    cout << "[anchor_rows_iter_i=" << anchor_rows_iter_i << "]";
                       //  }
                       //}
-                          
+
                       // Oh yes, and there is one fewer row...
                       last_row--;
-                    
+
                       // Note what we're doing now.
                       just_shrunk_profile = true;
                       just_grew_profile = false;
-                    
+
                       if( increase_thresholds_for_length_changes ) {
                         if(
                           propose_inserting_threshold_increment <
@@ -6682,7 +5457,7 @@ template <class ProfileType,
                         if(
                           propose_deleting_threshold_increment <
                           min_threshold_increment_for_increasing_threshold_for_length_changes
-                        ) {            
+                        ) {
                           propose_deleting_threshold +=
                             min_threshold_increment_for_increasing_threshold_for_length_changes;
                         } else {
@@ -6694,7 +5469,7 @@ template <class ProfileType,
                             ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
                             ( m_trainingParameters.verbosity < VERBOSITY_High )
                           ) ||
-                          ( m_trainingParameters.verbosity >= VERBOSITY_All ) 
+                          ( m_trainingParameters.verbosity >= VERBOSITY_All )
                         ) {
                           if(
                             ( propose_inserting_threshold == propose_inserting_prealign_threshold ) &&
@@ -6717,7 +5492,7 @@ template <class ProfileType,
                           }
                         } // End if verbose
                       } // End if increase_thresholds_for_length_changes
-                    
+
                       // Note that the profile length did change this
                       // iteration.
                       if( !just_caught_preAlign_cycle ) { // Unless it's a preAlign cycle.
@@ -6726,7 +5501,7 @@ template <class ProfileType,
                           last_length_change_was_insertion;
                         last_length_change_was_deletion = true;
                         last_length_change_was_insertion = false;
-                    
+
                         prev_profile_length_changed_this_iteration =
                           profile_length_changed_this_iteration;
                         profile_length_changed_this_iteration = true;
@@ -6750,9 +5525,9 @@ template <class ProfileType,
                         // necessary?  Not quite sure, but if we just break
                         // here, the subsequent Globals phase lowers the score
                         // significantly.
-                    
+
                         // Move along
-                        continue; // decrement m_row_i .. 
+                        continue; // decrement m_row_i ..
                       } else if(
                         // TODO: REMOVE!  Testing.
                                 //false &&
@@ -6763,12 +5538,12 @@ template <class ProfileType,
                         // more.  Stop reverting.
                         enable_reverting = false;
                         revert_globals_for_changed_profile_length = false;
-                          
+
                         // TODO: REMOVE
                         if( m_trainingParameters.verbosity >= VERBOSITY_Low ) {
                           cout << endl << "REVERTING DISABLED." << endl;
                         }
-                    
+
                         continue;
                       } else {
                         // There is no point in continuing with the rows.
@@ -6847,10 +5622,10 @@ template <class ProfileType,
                           cout.flush();
                         }
                       } // End if verbose
-                    
+
                       // First lengthen the profile.
                       //cout << "\t\tOld profile: " << *m_profile << endl;
-                    
+
                       // TODO: Note that if profile were an internalNode,
                       // we'd have to do a lot of upkeep, not just insert a
                       // new position.
@@ -6865,7 +5640,7 @@ template <class ProfileType,
                       //cout << "Just after insertion, the new position (at " << propose_inserting_pos_i << " is " << ( *m_profile )[ propose_inserting_pos_i ] << endl;
                       // TODO: REMOVE?
                       //alignment_profile_position_allseqs.normalize();
-                    
+
                       if( propose_inserting_pos_i == 0 ) {
                         ( *m_profile )[ propose_inserting_pos_i ][ Emission::Match ] =
                           alignment_profile_position_allseqs[ Emission::Insertion ]; // This is just the initial insertion column.  TODO: Use the extensions too?
@@ -6894,7 +5669,7 @@ template <class ProfileType,
                         m_matchEmissionPrior.incorporatePrior( ( *m_profile )[ propose_inserting_pos_i ] );
                       }
                       ( *m_profile )[ propose_inserting_pos_i ].normalize( m_trainingParameters.profileValueMinimum );
-                    
+
 #if defined( USE_DEL_IN_DEL_OUT ) && !defined( USE_SWENTRY_SWEXIT )
                       // Also lengthen the scaled match distributions.
                       // Technically the match distributions after this
@@ -6908,7 +5683,7 @@ template <class ProfileType,
                         );
                       } // End foreach tmp_pos_i
 #endif // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT
-                          
+
                       // TODO: REMOVE
                       //cout << "\t\tNew profile: " << *m_profile << endl;
                       if( cout_profile_length_changes ) {
@@ -6917,7 +5692,7 @@ template <class ProfileType,
                         //cout << "\t\tNew profile position: " << ( *m_profile )[ propose_inserting_pos_i ] << endl;
                         //cout << "\t\tlast_row is " << last_row << endl;
                       }
-                    
+
                       if( m_trainingParameters.useUnconditionalBaumWelch ) {
                         m_unconditional_position_ententes_vector.insert(
                           m_unconditional_position_ententes_vector.begin() + propose_inserting_pos_i,
@@ -6938,7 +5713,7 @@ template <class ProfileType,
                         } // End if baldiLearningRate > 0
 #endif // ALLOW_BOLTZMANN_GIBBS
                      } // End if useUnconditionalBaumWelch
-                   
+
                      // Grow the anchor columns and rows if we're exceeding
                      // the largest we've had in the past.
                      if(
@@ -6950,7 +5725,7 @@ template <class ProfileType,
                          // RowVector before it.  Point to the second one.
                          tmp_matrices_iter = m_anchor_columns.end();
                          tmp_matrices_iter--;
-                   
+
                          anchor_columns_iter = // points to the inserted row
                            m_anchor_columns.insert(
                              tmp_matrices_iter, // insert just before end
@@ -6977,10 +5752,10 @@ template <class ProfileType,
                        } else { // if propose_inserting_pos_i == last_row .. else ..
                          // Insert a copy of the current anchor columns
                          // RowVector before it.  Point to the second one.
-                   
+
                          // TODO: REMOVE
                          tmp_matrices_iter = anchor_columns_iter;
-                   
+
                          anchor_columns_iter = // points to the inserted row
                            m_anchor_columns.insert(
                              tmp_matrices_iter, // insert before here
@@ -7006,7 +5781,7 @@ template <class ProfileType,
                        assert( anchor_columns_iter == tmp_matrices_iter );
 #endif // !NDEBUG
                      } // End if m_anchor_columns.m_storeEveryNthColumn > 0
-                   
+
                      // Grow the anchor rows if necessary; either way, make
                      // sure we've got the anchor_rows_iter pointing to the
                      // anchor row associated with the position just before
@@ -7022,7 +5797,7 @@ template <class ProfileType,
                          // Insert a duplicate copy of the last anchor row.
                          tmp_matrices_iter = m_anchor_rows.end();
                          tmp_matrices_iter--;
-                   
+
                          anchor_rows_iter = // iter will point to new element.
                            m_anchor_rows.insert(
                              tmp_matrices_iter, // inserts just before the end
@@ -7037,17 +5812,17 @@ template <class ProfileType,
                          tmp_matrices_iter = m_anchor_rows.end();
                          tmp_matrices_iter--;
                          assert( anchor_rows_iter == tmp_matrices_iter );
-                   
+
                          if( cout_anchor_rows_iter_changes ) {
                            anchor_rows_iter_i = m_anchor_rows.size() - 1;
                            cout << "[anchor_rows_iter_i=" << anchor_rows_iter_i << "]";
                          }
                        } else { // if propose_inserting_pos_i == last_row .. else ..
                          // Insert a duplicate copy of the current anchor row.
-                   
+
                          // TODO: REMOVE
                          tmp_matrices_iter = anchor_rows_iter;
-                   
+
                          anchor_rows_iter = // iter will point to new element.
                            m_anchor_rows.insert(
                              anchor_rows_iter, // inserts before this point.
@@ -7057,11 +5832,11 @@ template <class ProfileType,
                          // now pointing to the copy that is associated with
                          // the current one.
                          anchor_rows_iter++;
-                   
+
                          // TODO: REMOVE
                          // REMOVED because technically, tmp_matrices_iter is presently invalid.
                          //assert( anchor_rows_iter == tmp_matrices_iter );
-                   
+
                          if( cout_anchor_rows_iter_changes ) {
                            anchor_rows_iter_i++;
                            cout << "[anchor_rows_iter_i=" << anchor_rows_iter_i << "]";
@@ -7082,13 +5857,13 @@ template <class ProfileType,
                            cout << "[anchor_rows_iter_i=" << anchor_rows_iter_i << "]";
                          }
                        }
-                   
+
                        // All anchor rows after anchor_rows_iter are now
                        // invalid, but the only ones that matter are those
                        // for propose_inserting_pos_i and for (
                        // propose_inserting_pos_i + 1 ) .. see below.
                      } else { // if we should add another anchor row .. else ..
-                   
+
                        // Ok we don't need to add a new row, but do we need
                        // to move the iter?  We want it pointing to the anchor row
                        // corresponding to the position we're adding.
@@ -7141,7 +5916,7 @@ template <class ProfileType,
                           ) {
                             tmp_matrices_iter2 = m_anchor_columns.begin();
                           }
-                      
+
                           swap = false;
                           for( uint32_t row_i = 0; row_i <= ( propose_inserting_pos_i + 1 ); row_i++ ) {
                             if(
@@ -7158,10 +5933,10 @@ template <class ProfileType,
                             ) {
                               tmp_matrices_iter2++;
                             }
-                      
+
                             // Every other time, we must swap which forward row is current.
                             swap = !swap;
-                      
+
                             for( m_seq_i = 0; m_seq_i < m_sequence_count; m_seq_i++ ) {
                               m_dynamic_programming.forward_calculateRow(
                                 m_trainingParameters,
@@ -7202,7 +5977,7 @@ template <class ProfileType,
                                 ( *tmp_matrices_iter )[ m_seq_i ] =
                                   ( swap ? ( *m_prev_forward_rows_ptr ) : ( *m_forward_rows_ptr ) )[ m_seq_i ];
                               } // End if storing anchor rows too and this is an anchor row
-                      
+
                               if( m_trainingParameters.useRabinerScaling ) {
                                 if( row_i == 0 ) {
                                   ( swap ? ( *m_prev_forward_rows_ptr )[ m_seq_i ] : ( *m_forward_rows_ptr )[ m_seq_i ] ).m_rabinerCumulativeInverseScalar =
@@ -7257,7 +6032,7 @@ template <class ProfileType,
                         // one before the newly inserted one -- a
                         // necessary distinction because we delay
                         // post-align insertions).
-                      
+
                         // Only some forward row calculations depend on the index
                         // of the row: when row_i is 0, 1, or last_row.  (unless
                         // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT, in which case they all depend on
@@ -7329,7 +6104,7 @@ template <class ProfileType,
                                    ( *m_forward_rows_ptr )[ m_seq_i ].m_rabinerCumulativeInverseScalar;
                                } // End if useRabinerScaling
                              }  // End if m_anchor_columns.m_storeEveryNthColumn > 0
-                     
+
                              // Keep the anchor rows up-to-date
                              if( ( propose_inserting_pos_i % m_anchor_rows.m_storeEveryNthRow ) == 0 ) {
                                // Remember that at this point,
@@ -7345,7 +6120,7 @@ template <class ProfileType,
                                  tmp_matrices_iter = anchor_rows_iter;
                                  tmp_matrices_iter--;
                                }
-                   
+
                                // TODO: Don't copy the data!  Copy the pointer!
                                ( *tmp_matrices_iter )[ m_seq_i ] =
                                  ( *m_forward_rows_ptr )[ m_seq_i ];
@@ -7360,14 +6135,14 @@ template <class ProfileType,
                            } // End foreach sequence
                          } // End if we're inserting after the first, second,
                          // or last row, recalc the current forward row.
-                       
+
                          // Now calculate the new forward row.
-                       
+
                          // First, rotate the forward_rows
                          m_temp_forward_rows_ptr = m_forward_rows_ptr;
                          m_forward_rows_ptr = m_prev_forward_rows_ptr;
                          m_prev_forward_rows_ptr = m_temp_forward_rows_ptr;
-                     
+
                          for( m_seq_i = 0; m_seq_i < m_sequence_count; m_seq_i++ ) {
                            m_dynamic_programming.forward_calculateRow(
                              m_trainingParameters,
@@ -7410,11 +6185,11 @@ template <class ProfileType,
                                 ( *m_forward_rows_ptr )[ m_seq_i ].m_rabinerCumulativeInverseScalar;
                             } // End if useRabinerScaling
                           } // End if m_anchor_columns.m_storeEveryNthColumn > 0
-                    
+
                           // Keep the anchor rows up-to-date
                           if( ( ( propose_inserting_pos_i + 1 ) % m_anchor_rows.m_storeEveryNthRow ) == 0 ) {
                             // We've already set the iterator to the right place (see above).
-                    
+
                             // TODO: Don't copy the data!  Copy the pointer!
                             ( *anchor_rows_iter )[ m_seq_i ] =
                               ( *m_forward_rows_ptr )[ m_seq_i ];
@@ -7427,14 +6202,14 @@ template <class ProfileType,
                             } // End if useRabinerScaling
                           } // End if this is an anchor row, store it.
                         } // End foreach m_seq_i
-                      
+
                         // And remember that we already rotated the rows.
                         forward_rows_are_already_rotated_and_calculated = true;
                       } // End if true (or maybe if do_not_recalculate_all_forward_rows_during_lengthadjust)
-                    
+
                       // At this point the anchor rows and cols iters point to
                       // the row for the newly-inserted position.
-                    
+
                       if( propose_inserting_pos_i != last_row ) {
                         // Rotate the backward_rows, since we're effectively
                         // undoing our last move and doing it again with the
@@ -7449,7 +6224,7 @@ template <class ProfileType,
                         // it will be rotated again, making the
                         // m_backward_rows_ptr become the
                         // m_next_backward_rows_ptr for the next time thru.
-                      
+
                         if( m_trainingParameters.useRabinerScaling ) {
                           // The backward rows were scaled by the
                           // rabinerInverseScalar of the corresponding forward
@@ -7466,7 +6241,7 @@ template <class ProfileType,
                               ( *m_forward_rows_ptr )[ m_seq_i ].m_rabinerInverseScalar;
                             // Rescale it to the new scale.
                             ( *m_backward_rows_ptr )[ m_seq_i ] *= scale_ratio;
-                      
+
                             // Note the new scale.
                             ( *m_backward_rows_ptr )[ m_seq_i ].m_rabinerInverseScalar =
                               //////m_forward_matrices[ propose_inserting_pos_i + 1 ][ m_seq_i ].m_rabinerInverseScalar;
@@ -7478,11 +6253,11 @@ template <class ProfileType,
                               ( *m_backward_rows_ptr )[ m_seq_i ].m_rabinerCumulativeInverseScalar /=
                                 scale_ratio;
                             } // End if ( propose_inserting_pos_i + 1 ) == ( last_row + 1 ) .. else ..
-                          } // End foreach sequence, fix the backward row's rabinerInverseScalars.. 
+                          } // End foreach sequence, fix the backward row's rabinerInverseScalars..
                         } // End if useRabinerScaling
                       } // End if propose_inserting_pos_i != last_row, rotate
                         // backward rows.
-                    
+
                       // If we don't alwaysAccept, then we need to
                       // recalculate the score, so we know if we have an
                       // improvement next time (Note that we can't reject the
@@ -7491,7 +6266,7 @@ template <class ProfileType,
                       // TODO: PUT BACK.. TESTING.
                       //if( !( !disallow_alwaysAccept && m_trainingParameters.alwaysAccept ) ) {
                       if( true ) {
-                    
+
                         // To efficiently recalculate the score, we can
                         // calculate the backward_rows for the newly created
                         // row now...
@@ -7499,11 +6274,11 @@ template <class ProfileType,
                         m_temp_backward_rows_ptr = m_backward_rows_ptr;
                         m_backward_rows_ptr = m_next_backward_rows_ptr;
                         m_next_backward_rows_ptr = m_temp_backward_rows_ptr;
-                    
+
                         backward_rows_are_already_rotated_and_calculated = true;
-                    
+
                         for( m_seq_i = 0; m_seq_i < m_sequence_count; m_seq_i++ ) {
-                    
+
                           if( m_trainingParameters.useRabinerScaling ) {
                             ( *m_backward_rows_ptr )[ m_seq_i ].m_rabinerInverseScalar =
                               /////m_forward_matrices[ ( propose_inserting_pos_i + 1 ) ][ m_seq_i ].m_rabinerInverseScalar;
@@ -7535,11 +6310,11 @@ template <class ProfileType,
                           } // End if useRabinerScaling
                         } // End foreach sequence, calculate the backward
                         // rows for the new row.
-                    
+
                         // TODO: REMOVE
                         //cout << "(2) Ending score, before recalculating, is " << m_endingScore << endl;
                         m_endingScore =
-                          m_dynamic_programming.forward_score( 
+                          m_dynamic_programming.forward_score(
                             m_trainingParameters,
                             *m_profile,
                             m_sequence_count,
@@ -7558,21 +6333,21 @@ template <class ProfileType,
                         // TODO: REMOVE
                         //cout << "(2) Ending score, calculated the new way, is " << m_endingScore << endl;
                         // TODO: REMOVE
-                    
+
                         // TODO: REMOVE?
                         assert( !isnan( m_endingScore ) );
-                    
+
                       } // End if !alwaysAccept, recalculate the score(s)
-                    
+
                       // Keep track of the creation time.
                       lengthadjust_position_creation_iters.insert(
                         lengthadjust_position_creation_iters.begin() + propose_inserting_pos_i,
                         ( ( ubw_cbw_hybrid ) ? static_cast<int>( m_iteration / 2 ) : m_iteration )
                       );
-                    
+
                       // Now increment the m_row_i and last_row
                       last_row++;
-                    
+
                       m_row_i = ( propose_inserting_pos_i + 2 ); // it will be
                                                                  // decremented
                                                                  // on
@@ -7580,7 +6355,7 @@ template <class ProfileType,
                                                                  // so
                       // it will be propose_inserting_pos_i + 1 when we come
                       // around again.
-                    
+
                       // This too will be decremented when we come around again.
                       if(
                         ( ( ( ( m_row_i - 1 ) + 1 ) % m_anchor_rows.m_storeEveryNthRow ) == 0 ) &&
@@ -7596,7 +6371,7 @@ template <class ProfileType,
                         // TODO: REMOVE
                         //assert( anchor_rows_iter == ( m_anchor_rows.begin() + ( propose_inserting_pos_i + 2 ) ) );
                       } // End if we need to increment the anchor rows iterator
-                    
+
                       // This too will be decremented when we come around again.
                       if(
                         ( ( m_row_i - 1 ) != last_row ) &&
@@ -7611,11 +6386,11 @@ template <class ProfileType,
                           cout << "[anchor_columns_iter_i=" << anchor_columns_iter_i << "]";
                         }
                       } // End if ( m_row_i - 1 ) != last_row and m_anchor_columns.m_storeEveryNthColumn > 0
-                    
+
                       // Note what we're doing now.
                       just_grew_profile = true;
                       just_shrunk_profile = false;
-                    
+
                       if( increase_thresholds_for_length_changes ) {
                         if(
                           propose_inserting_threshold_increment <
@@ -7650,7 +6425,7 @@ template <class ProfileType,
                         if(
                           propose_deleting_threshold_increment <
                           min_threshold_increment_for_increasing_threshold_for_length_changes
-                        ) {            
+                        ) {
                           propose_deleting_threshold +=
                             min_threshold_increment_for_increasing_threshold_for_length_changes;
                         } else {
@@ -7662,7 +6437,7 @@ template <class ProfileType,
                             ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
                             ( m_trainingParameters.verbosity < VERBOSITY_High )
                           ) ||
-                          ( m_trainingParameters.verbosity >= VERBOSITY_All ) 
+                          ( m_trainingParameters.verbosity >= VERBOSITY_All )
                         ) {
                           if(
                             ( propose_inserting_threshold == propose_inserting_prealign_threshold ) &&
@@ -7685,7 +6460,7 @@ template <class ProfileType,
                           }
                         } // End if verbose
                       } // End if increase_thresholds_for_length_changes
-  
+
                       // Don't redelete what we just added
                       prev_to_last_length_change_was_insertion =
                         last_length_change_was_insertion;
@@ -7696,7 +6471,7 @@ template <class ProfileType,
                       prev_profile_length_changed_this_iteration =
                         profile_length_changed_this_iteration;
                       profile_length_changed_this_iteration = true;
-                    
+
                       if( globals_are_at_starting_values || !enable_reverting ) {
                         if(
                           m_trainingParameters.useUnconditionalBaumWelch
@@ -7722,12 +6497,12 @@ template <class ProfileType,
                         // more.  Stop reverting.
                         enable_reverting = false;
                         revert_globals_for_changed_profile_length = false;
-                          
+
                         // TODO: REMOVE
                         if( m_trainingParameters.verbosity >= VERBOSITY_Low ) {
                           cout << endl << "REVERTING DISABLED." << endl;
                         }
-  
+
                         continue;
                       } else {
                         // There is no point in continuing with the rows.
@@ -7798,11 +6573,11 @@ template <class ProfileType,
                     //cout << "AFTER usePriors, m_position_entente is " << m_position_entente << endl;
                   } // End if ( baldiLearningRate > 0 ) .. else if usePriors ..
                 } // End if TRAINING_PHASE_Positions
-          
+
                 if( m_trainingParameters.debug > DEBUG_None ) {
                   cout << ".done." << endl;
                 } // End if debug
-          
+
 
               if( ( m_trainingPhase != TRAINING_PHASE_Positions ) &&
                   ( m_row_i == 0 ) ) {
@@ -7817,7 +6592,7 @@ template <class ProfileType,
                   //  cout << "alignment_profile_position_allseqs is " << alignment_profile_position_allseqs << endl;
                   //  cout << "\t unscaled, alignment_profile_position_allseqs is " << alignment_profile_position_allseqs.createUnscaledCopy() << endl;
                   //} // End if testing
-          
+
                   if( m_trainingParameters.usePriors ) {
                     // TODO: REMOVE
                     //m_global_entente.unscale();
@@ -7874,8 +6649,8 @@ template <class ProfileType,
                       //     ) {
                       //    cout << "SKIPPING BALDI BECAUSE WE'RE REVERTING GLOBALS." << endl;
                       //}
-                      
-                      if( 
+
+                      if(
                          !(
                            m_trainingParameters.proposeProfileLengthChanges &&
                            revert_globals_for_changed_profile_length
@@ -7884,13 +6659,13 @@ template <class ProfileType,
                           && ( ubw_cbw_hybrid ? ( ( m_iteration % 2 ) == 0 ) : true ) // only train positions every *other* iter
                       ) {
                         m_startingScore_position_step = m_endingScore;
-                        
+
                         if( m_trainingParameters.baldiHybrid ) {
 
                           // Also make sure we couldn't do better just using the UBW update.
                           for( m_row_i = last_row; m_row_i > 0; m_row_i-- ) {
-                            if( ( m_trainingParameters.positionShouldBeTrained != NULL ) &&
-                                !( *m_trainingParameters.positionShouldBeTrained )[ m_row_i - 1 ] ) {
+                            if( ( m_trainingParameters.positionShouldBeTrained.size() > 0 ) &&
+                                !m_trainingParameters.positionShouldBeTrained[ m_row_i - 1 ] ) {
                               // Then don't train it.
                               continue;
                             }
@@ -7902,7 +6677,7 @@ template <class ProfileType,
                             );
                             ( *m_profile )[ m_row_i - 1 ] = m_position_entente; // already normalized.
                           } // End foreach row_i
-                              
+
 #if defined( USE_DEL_IN_DEL_OUT ) && !defined( USE_SWENTRY_SWEXIT )
                           // Make sure the scaled distributions are up-to-date.
                           for( tmp_pos_i = 0; tmp_pos_i < ( m_profile->length() - 1 ); tmp_pos_i++ ) {
@@ -7913,7 +6688,7 @@ template <class ProfileType,
                           } // End foreach tmp_pos_i
 #endif // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT
                           bool swap =
-                            m_dynamic_programming.forward_score( 
+                            m_dynamic_programming.forward_score(
                               m_trainingParameters,
                               false, // don't use viterbi
                               *m_profile,
@@ -7931,7 +6706,7 @@ template <class ProfileType,
                               m_endingScore
                             );
                           //m_endingScore =
-                          //  m_dynamic_programming.forward_score( 
+                          //  m_dynamic_programming.forward_score(
                           //    m_trainingParameters,
                           //    *m_profile,
                           //    m_sequences,
@@ -7945,7 +6720,7 @@ template <class ProfileType,
 
                           // Return it to what it was before.
                           m_profile->copyPositions( m_unconditional_backupProfile );
-  
+
                           if( m_baldi_be_verbose ) {
                             cout << "The score if we just use standard UBW is " << m_endingScore << endl;
                           }
@@ -7955,8 +6730,8 @@ template <class ProfileType,
                         if( m_trainingParameters.siegelMaxFindingThePeakAttempts_positions == 0 ) {
                           // Just use straight-up Baldi.
                           for( m_row_i = last_row; m_row_i > 0; m_row_i-- ) {
-                            if( ( m_trainingParameters.positionShouldBeTrained != NULL ) &&
-                                !( *m_trainingParameters.positionShouldBeTrained )[ m_row_i - 1 ] ) {
+                            if( ( m_trainingParameters.positionShouldBeTrained.size() > 0 ) &&
+                                !m_trainingParameters.positionShouldBeTrained[ m_row_i - 1 ] ) {
                               // Then don't train it.
                               continue;
                             }
@@ -7966,14 +6741,14 @@ template <class ProfileType,
                             m_position_entente.normalize(
                               m_trainingParameters.profileValueMinimum
                             );
-                        
+
                             if( false && m_baldi_be_verbose ) {
                               cout << "The profile position was " << ( *m_profile )[ m_row_i - 1 ] << endl;
                             }
-                              
+
                             m_baldi_position_boltzmann_gibbs_change =
                               m_unconditional_baldi_position_boltzmann_gibbs_changes_vector[ m_row_i - 1 ];
-                              
+
                             // Convert the profile position to Boltzmann-Gibbs.
                             m_baldi_position_boltzmann_gibbs.fromProfilePosition(
                               ( *m_profile )[ m_row_i - 1 ]
@@ -7993,10 +6768,10 @@ template <class ProfileType,
                             if( false && m_baldi_be_verbose ) {
                               cout << "weighted by the learning-rate and by current score m_startingScore_position_step, m_baldi_position_boltzmann_gibbs_change is " << m_baldi_position_boltzmann_gibbs_change << endl;
                             }
-                          
+
                             m_baldi_position_boltzmann_gibbs +=
                               m_baldi_position_boltzmann_gibbs_change;
-                          
+
                             m_baldi_position_boltzmann_gibbs.toProfilePosition(
                               ( *m_profile )[ m_row_i - 1 ]
                             );
@@ -8021,7 +6796,7 @@ template <class ProfileType,
                           } // End foreach tmp_pos_i
 #endif // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT
                           bool swap =
-                            m_dynamic_programming.forward_score( 
+                            m_dynamic_programming.forward_score(
                               m_trainingParameters,
                               false, // don't use viterbi
                               *m_profile,
@@ -8039,7 +6814,7 @@ template <class ProfileType,
                               score_after_modification
                             );
                           //score_after_modification =
-                          //  m_dynamic_programming.forward_score( 
+                          //  m_dynamic_programming.forward_score(
                           //    m_trainingParameters,
                           //    *m_profile,
                           //    m_sequences,
@@ -8050,7 +6825,7 @@ template <class ProfileType,
                           //  );
                           // TODO: REMOVE?
                           assert( !isnan( score_after_modification ) );
-  
+
                           // Return it to what it was before.
                           m_profile->copyPositions( m_unconditional_backupProfile );
 
@@ -8097,14 +6872,14 @@ template <class ProfileType,
                                ++finding_the_peak_attempts,
                                  ( epsilon *= epsilon_scale_value )
                           ) { // for( finding_the_peak_attempts ... )
-                            
+
                             if( m_baldi_be_verbose ) {
                               cout << " Unconditional Baldi / Siegel with finding-the-peak with epsilon = " << epsilon << endl;
                             }
 
                             for( m_row_i = last_row; m_row_i > 0; m_row_i-- ) {
-                              if( ( m_trainingParameters.positionShouldBeTrained != NULL ) &&
-                                  !( *m_trainingParameters.positionShouldBeTrained )[ m_row_i - 1 ] ) {
+                              if( ( m_trainingParameters.positionShouldBeTrained.size() > 0 ) &&
+                                  !m_trainingParameters.positionShouldBeTrained[ m_row_i - 1 ] ) {
                                 // Then don't train it.
                                 continue;
                               }
@@ -8114,14 +6889,14 @@ template <class ProfileType,
                               m_position_entente.normalize(
                                 m_trainingParameters.profileValueMinimum
                               );
-                        
+
                               if( false && m_baldi_be_verbose ) {
                                 cout << "The profile position was " << ( *m_profile )[ m_row_i - 1 ] << endl;
                               }
-                              
+
                               m_baldi_position_boltzmann_gibbs_change =
                                 m_unconditional_baldi_position_boltzmann_gibbs_changes_vector[ m_row_i - 1 ];
-                              
+
                               // Convert the profile position to Boltzmann-Gibbs.
                               m_baldi_position_boltzmann_gibbs.fromProfilePosition(
                                 ( *m_profile )[ m_row_i - 1 ]
@@ -8133,10 +6908,10 @@ template <class ProfileType,
 
                               m_baldi_position_boltzmann_gibbs_change.m_scalar /=
                                 epsilon;
-                            
+
                               m_baldi_position_boltzmann_gibbs +=
                                 m_baldi_position_boltzmann_gibbs_change;
-                            
+
                               m_baldi_position_boltzmann_gibbs.toProfilePosition(
                                 ( *m_profile )[ m_row_i - 1 ]
                               );
@@ -8158,7 +6933,7 @@ template <class ProfileType,
                             } // End foreach tmp_pos_i
 #endif // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT
                             bool swap =
-                              m_dynamic_programming.forward_score( 
+                              m_dynamic_programming.forward_score(
                                 m_trainingParameters,
                                 false, // don't use viterbi
                                 *m_profile,
@@ -8176,7 +6951,7 @@ template <class ProfileType,
                                 score_after_modification
                               );
                             //score_after_modification =
-                            //  m_dynamic_programming.forward_score( 
+                            //  m_dynamic_programming.forward_score(
                             //    m_trainingParameters,
                             //    *m_profile,
                             //    m_sequences,
@@ -8187,14 +6962,14 @@ template <class ProfileType,
                             //  );
                             // TODO: REMOVE?
                             assert( !isnan( score_after_modification ) );
-                            
+
                             // Return it to what it was before.
                             m_profile->copyPositions( m_unconditional_backupProfile );
-                            
+
                             if( m_baldi_be_verbose ) {
                               cout << "Got score diff " << ( ( m_startingScore_position_step > score_after_modification ) ? "(negative) " : "" ) << ( ( m_startingScore_position_step > score_after_modification ) ? ( m_startingScore_position_step / score_after_modification ) : ( score_after_modification / m_startingScore_position_step ) ) << ": was " << m_startingScore_position_step << "; is now " << score_after_modification << endl;
                             }
-                            
+
                             if( epsilon_scale_value < 1 ) {
                               assert( epsilon_scale_value == ( 1.0 / epsilon_scale_value_scale_factor ) );
                               if( finding_the_peak_attempts == 0 ) {
@@ -8214,19 +6989,19 @@ template <class ProfileType,
                                 assert( sample_indices[ 0 ] == 0 );
                                 assert( sample_indices[ 1 ] == 1 );
                                 assert( sample_indices[ 2 ] == 2 );
-                        
+
                                 if(
                                    score_after_modification < sample_scores[ 0 ]
                                   ) {
                                   // Score went down.  Flip.
                                   epsilon_scale_value = epsilon_scale_value_scale_factor;
-                        
+
                                   // Put the new score in the front..
                                   sample_scores[ 1 ] = sample_scores[ 0 ];
                                   sample_epsilons[ 1 ] = sample_epsilons[ 0 ];
                                   sample_scores[ 0 ] = score_after_modification;
                                   sample_epsilons[ 0 ] = epsilon;
-                        
+
                                   // We've already calculated epsilon*2 (it's in sample_scores[ 1 ])
                                  epsilon *= epsilon_scale_value;
                                 } else if( score_after_modification == sample_scores[ 0 ] ) {
@@ -8234,7 +7009,7 @@ template <class ProfileType,
                                   if( m_baldi_be_verbose ) {
                                     cout << "Couldn't get a score change.  ";
                                   }
-  
+
                                   // Ok.  Try again with a bigger epsilon scale factor.
                                   epsilon_scale_value_scale_factor = 1 + ( ( epsilon_scale_value_scale_factor - 1 ) * 2 ); // TODO: DEHACKIFY MAGIC # 2.
                                   epsilon /= epsilon_scale_value;
@@ -8247,41 +7022,41 @@ template <class ProfileType,
                                   sample_scores[ 1 ] = score_after_modification;
                                   sample_epsilons[ 1 ] = epsilon;
                                 }
-                        
+
                               } else if( sample_epsilons[ 2 ] == 0 ) {
                                 assert( sample_indices[ 0 ] == 0 );
                                 assert( sample_indices[ 1 ] == 1 );
                                 assert( sample_indices[ 2 ] == 2 );
-  
+
                                 sample_scores[ 2 ] =
                                   score_after_modification;
                                 sample_epsilons[ 2 ] =
                                   epsilon;
                               } else { // if we're still working on getting the first samples .. else ..
-                        
+
                                 assert( finding_the_peak_attempts > 2 );
-  
+
                                 // Put the new score at the end..
                                 temp_index          = sample_indices[ 0 ];
                                 sample_indices[ 0 ] = sample_indices[ 1 ];
                                 sample_indices[ 1 ] = sample_indices[ 2 ];
                                 sample_indices[ 2 ] = temp_index;
-                        
+
                                 sample_scores[ temp_index ] =
                                   score_after_modification;
                                 sample_epsilons[ temp_index ] =
                                   epsilon;
-                        
+
                               }  // End if we're still working on getting the first samples .. else ..
-                        
+
                             } else { // if the epsilon scale value is < 1 .. else ..
                               assert( epsilon_scale_value == epsilon_scale_value_scale_factor );
-  
+
                               if( finding_the_peak_attempts == 0 ) { // The first sample.
                                 assert( sample_indices[ 0 ] == 0 );
                                 assert( sample_indices[ 1 ] == 1 );
                                 assert( sample_indices[ 2 ] == 2 );
-  
+
                                 sample_scores[ 0 ] =
                                   score_after_modification;
                                 sample_epsilons[ 0 ] =
@@ -8291,20 +7066,20 @@ template <class ProfileType,
                                 assert( sample_indices[ 0 ] == 0 );
                                 assert( sample_indices[ 1 ] == 1 );
                                 assert( sample_indices[ 2 ] == 2 );
-                        
+
                                 if(
                                    score_after_modification < sample_scores[ 0 ]
                                   ) {
                                   // Score went down..
                                   epsilon_scale_value =
                                     ( 1.0 / epsilon_scale_value_scale_factor );
-                        
+
                                   // Put the new score in the front..
                                   sample_scores[ 1 ] = sample_scores[ 0 ];
                                   sample_epsilons[ 1 ] = sample_epsilons[ 0 ];
                                   sample_scores[ 0 ] = score_after_modification;
                                   sample_epsilons[ 0 ] = epsilon;
-                        
+
                                   // We've already calculated epsilon/2 (it's in sample_scores[ 1 ])
                                   epsilon *= epsilon_scale_value;
                                 } else if( score_after_modification == sample_scores[ 0 ] ) {
@@ -8340,34 +7115,34 @@ template <class ProfileType,
                                   sample_scores[ 1 ] = score_after_modification;
                                   sample_epsilons[ 1 ] = epsilon;
                                 }
-                        
+
                               } else if( sample_epsilons[ 2 ] == 0 ) {
                                 assert( sample_indices[ 0 ] == 0 );
                                 assert( sample_indices[ 1 ] == 1 );
                                 assert( sample_indices[ 2 ] == 2 );
-                        
+
                                 sample_scores[ 2 ] =
                                   score_after_modification;
                                 sample_epsilons[ 2 ] =
                                   epsilon;
-                        
+
                               } else { // If still working on filling the 3 samples for the first time .. else ..
-                        
+
                                 // Put the new score at the end..
                                 temp_index          = sample_indices[ 0 ];
                                 sample_indices[ 0 ] = sample_indices[ 1 ];
                                 sample_indices[ 1 ] = sample_indices[ 2 ];
                                 sample_indices[ 2 ] = temp_index;
-                        
+
                                 sample_scores[ temp_index ] =
                                   score_after_modification;
                                 sample_epsilons[ temp_index ] =
                                   epsilon;
-                        
+
                               } // End if still working on filling the 3 samples for the first time .. else ..
-                        
+
                             } // End if the epsilon scale value is < 1 .. else ..
-                        
+
                             if( m_baldi_be_verbose ) {
                               cout <<
                                 "CONTINUE: The three sample points are ( [ " <<
@@ -8377,7 +7152,7 @@ template <class ProfileType,
                                 sample_scores[ sample_indices[ 1 ] ] << " ], [ " <<
                                 sample_epsilons[ sample_indices[ 2 ] ] << ", " <<
                                 sample_scores[ sample_indices[ 2 ] ] << " ] )" << endl;
-                              cout << "Scale value is " << epsilon_scale_value << 
+                              cout << "Scale value is " << epsilon_scale_value <<
                                 ".  Local epsilon was " << epsilon << endl;
                             }
                             if(
@@ -8423,7 +7198,7 @@ template <class ProfileType,
                                 cout << "'";
                               } // End if verbose
                               break;
-                            } else if( 
+                            } else if(
                               ( sample_epsilons[ 2 ] == 0 ) &&
                               ( finding_the_peak_attempts >=
                                 m_trainingParameters.siegelMaxFindingTheGradientAttempts_positions )
@@ -8469,7 +7244,7 @@ template <class ProfileType,
                               }
                               break;
                             }
-                        
+
                           } // End foreach finding_the_peak_attempts : getting three sample points (trapping the peak)
                           // TODO: REMOVE
                           if( m_trainingParameters.verbosity >= VERBOSITY_Low ) {
@@ -8488,13 +7263,13 @@ template <class ProfileType,
                             if( m_baldi_be_verbose ) {
                               cout << "The score using the estimated plateau epsilon is " << score_after_modification << endl;
                             }
-  
+
                           } else if(
                              sample_scores[ sample_indices[ 2 ] ] <=
                              sample_scores[ sample_indices[ 1 ] ]
                           ) {
                             // If we trapped the peak, find the max of the quadratic..
-  
+
                             // But first make sure they're ordered
                             // consistently low to high, for ease of
                             // coding below..
@@ -8507,7 +7282,7 @@ template <class ProfileType,
                             }
                             assert( sample_epsilons[ sample_indices[ 2 ] ] >= sample_epsilons[ sample_indices[ 1 ] ] );
                             assert( sample_epsilons[ sample_indices[ 1 ] ] >= sample_epsilons[ sample_indices[ 0 ] ] );
-                          
+
                             if( m_baldi_be_verbose ) {
                               cout <<
                                 "Trapped the peak: The three sample points are ( [ " <<
@@ -8518,13 +7293,13 @@ template <class ProfileType,
                                 sample_epsilons[ sample_indices[ 2 ] ] << ", " <<
                                 sample_scores[ sample_indices[ 2 ] ] << " ] )" << endl;
                             }
-                      
+
                             for( refining_the_peak_steps = 0;
                                   ( refining_the_peak_steps <
                                     m_trainingParameters.siegelMaxRefiningThePeakSteps_positions );
                                  ++refining_the_peak_steps
                             ) {
-                          
+
                               // Find the epsilon at which the score is maximized, under the
                               // assumption that the landscape is locally quadratic.
                               epsilon =
@@ -8536,31 +7311,31 @@ template <class ProfileType,
                                   sample_epsilons[ sample_indices[ 2 ] ],
                                   sample_scores[ sample_indices[ 2 ] ]
                                 );
-                                
+
                               if( m_baldi_be_verbose ) {
                                 cout << "estimated peak epsilon is " << epsilon << endl;
                               }
-                                  
+
                               for( m_row_i = last_row; m_row_i > 0; m_row_i-- ) {
-                                if( ( m_trainingParameters.positionShouldBeTrained != NULL ) &&
-                                    !( *m_trainingParameters.positionShouldBeTrained )[ m_row_i - 1 ] ) {
+                                if( ( m_trainingParameters.positionShouldBeTrained.size() > 0 ) &&
+                                    !m_trainingParameters.positionShouldBeTrained[ m_row_i - 1 ] ) {
                                   // Then don't train it.
                                   continue;
                                 }
-                              
+
                                 m_position_entente =
                                   m_unconditional_position_ententes_vector[ m_row_i - 1 ];
                                 m_position_entente.normalize(
                                   m_trainingParameters.profileValueMinimum
                                 );
-                              
+
                                 if( false && m_baldi_be_verbose ) {
                                   cout << "The profile position was " << ( *m_profile )[ m_row_i - 1 ] << endl;
                                 }
-                                
+
                                 m_baldi_position_boltzmann_gibbs_change =
                                   m_unconditional_baldi_position_boltzmann_gibbs_changes_vector[ m_row_i - 1 ];
-                                
+
                                 // Convert the profile position to Boltzmann-Gibbs.
                                 m_baldi_position_boltzmann_gibbs.fromProfilePosition(
                                   ( *m_profile )[ m_row_i - 1 ]
@@ -8569,10 +7344,10 @@ template <class ProfileType,
                                   cout << ".. so the corresponding m_baldi_position_boltzmann_gibbs is " << m_baldi_position_boltzmann_gibbs << endl;
                                   cout << "Scaled, m_baldi_position_boltzmann_gibbs_change is " << m_baldi_position_boltzmann_gibbs_change << endl;
                                 }
-                                
+
                                 m_baldi_position_boltzmann_gibbs_change.m_scalar /=
                                   epsilon;
-                                
+
                                 // In the Baldi paper, this corresponds to equation
                                 // 3-prime (the learning rate should incorporate the
                                 // current score):
@@ -8581,14 +7356,14 @@ template <class ProfileType,
                                 // This is wrong, but seems to do better: ! Even still, not so good.
                                 //m_baldi_position_boltzmann_gibbs_change.m_scalar *=
                                 //  m_startingScore_position_step; // the current score...
-                                
+
                                 if( false && m_baldi_be_verbose ) {
                                   cout << "weighted by the learning-rate, m_baldi_position_boltzmann_gibbs_change is " << m_baldi_position_boltzmann_gibbs_change << endl;
                                 }
-                                
+
                                 m_baldi_position_boltzmann_gibbs +=
                                   m_baldi_position_boltzmann_gibbs_change;
-                                
+
                                 m_baldi_position_boltzmann_gibbs.toProfilePosition(
                                   ( *m_profile )[ m_row_i - 1 ]
                                 );
@@ -8599,7 +7374,7 @@ template <class ProfileType,
                                   m_trainingParameters.profileValueMinimum
                                 );
                               } // End foreach row_i
-                              
+
 #if defined( USE_DEL_IN_DEL_OUT ) && !defined( USE_SWENTRY_SWEXIT )
                               // Make sure the scaled distributions are up-to-date.
                               for( tmp_pos_i = 0; tmp_pos_i < ( m_profile->length() - 1 ); tmp_pos_i++ ) {
@@ -8610,7 +7385,7 @@ template <class ProfileType,
                               } // End foreach tmp_pos_i
 #endif // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT
                               bool swap =
-                                m_dynamic_programming.forward_score( 
+                                m_dynamic_programming.forward_score(
                                   m_trainingParameters,
                                   false, // don't use viterbi
                                   *m_profile,
@@ -8628,7 +7403,7 @@ template <class ProfileType,
                                   score_after_modification
                                 );
                               //score_after_modification =
-                              //  m_dynamic_programming.forward_score( 
+                              //  m_dynamic_programming.forward_score(
                               //    m_trainingParameters,
                               //    *m_profile,
                               //    m_sequences,
@@ -8639,14 +7414,14 @@ template <class ProfileType,
                               //  );
                               // TODO: REMOVE?
                               assert( !isnan( score_after_modification ) );
-    
+
                               // Return it to what it was before.
                               m_profile->copyPositions( m_unconditional_backupProfile );
 
                               if( m_baldi_be_verbose ) {
                                 cout << "The score using the estimated peak epsilon is " << score_after_modification << endl;
                               }
-                                
+
                               if( score_after_modification < sample_scores[ sample_indices[ 1 ] ] ) {
                                 // See if we're converged..
                                 if( ( ( sample_scores[ sample_indices[ 1 ] ] - score_after_modification ) / sample_scores[ sample_indices[ 1 ] ] ) < m_trainingParameters.siegelRefiningThePeakStepsConvergenceThreshold ) {
@@ -8679,13 +7454,13 @@ template <class ProfileType,
                                   sample_indices[ 1 ] = temp_index;
                                 }
                               } // End if the new score is worse .. else the same .. else better ..
-                        
+
                               sample_scores[ temp_index ] =
                                 score_after_modification;
                               sample_epsilons[ temp_index ] =
                                 epsilon;
                             } // End foreach refining_the_peak_steps
-  
+
                             if( refining_the_peak_steps ==
                                 m_trainingParameters.siegelMaxRefiningThePeakSteps_positions ) {
                               // Then we ended because we ran out of steps, not because we actually converged.
@@ -8695,24 +7470,24 @@ template <class ProfileType,
                             epsilon = sample_epsilons[ sample_indices[ 1 ] ];
                             score_after_modification = sample_scores[ sample_indices[ 1 ] ];
                           } // End if we got caught on a plateau .. else if we trapped a peak ..
-                        
+
                           // Even if we did manage to trap the peak, our new score might
                           // not be better than the old score (stranger things have
                           // happened)...
-                          if( 
+                          if(
                              ( sample_scores[ sample_indices[ 2 ] ] >
                                sample_scores[ sample_indices[ 1 ] ] )
                               ||
                              ( score_after_modification <
                                m_startingScore_position_step )
                             ) {
-                        
+
                             if( m_baldi_be_verbose ) {
                               cout << "Darn.  Since we couldn't find an adequate peak, we'll use the best epsilon we've seen so far." << endl;
                             }
-                        
+
                             // In case we did find the peak and modified for it but it did no good,
-                            if( 
+                            if(
                                sample_scores[ sample_indices[ 2 ] ] >
                                sample_scores[ sample_indices[ 1 ] ]
                               ) {
@@ -8722,13 +7497,13 @@ template <class ProfileType,
                               epsilon = sample_epsilons[ sample_indices[ 1 ] ];
                               score_after_modification = sample_scores[ sample_indices[ 1 ] ];
                             }
-                        
+
                             if( m_baldi_be_verbose ) {
                               cout << "epsilon is now " << epsilon << endl;
                               cout << "score_after_modification is now " << score_after_modification << endl;
                             }
                           } // End if we have to fall back on the best we've found so far
-                          
+
                         } // End if use Baldi .. else use Baldi / Siegel ..
 
                         if( m_baldi_be_verbose ) {
@@ -8742,28 +7517,28 @@ template <class ProfileType,
                               cout << "~";
                             } // End if verbose
                           }
-                          
+
                           // Ok reapply the epsilon that worked best.
                           for( m_row_i = last_row; m_row_i > 0; m_row_i-- ) {
-                            if( ( m_trainingParameters.positionShouldBeTrained != NULL ) &&
-                                !( *m_trainingParameters.positionShouldBeTrained )[ m_row_i - 1 ] ) {
+                            if( ( m_trainingParameters.positionShouldBeTrained.size() > 0 ) &&
+                                !m_trainingParameters.positionShouldBeTrained[ m_row_i - 1 ] ) {
                               // Then don't train it.
                               continue;
                             }
-                          
+
                             m_position_entente =
                               m_unconditional_position_ententes_vector[ m_row_i - 1 ];
                             m_position_entente.normalize(
                               m_trainingParameters.profileValueMinimum
                             );
-                          
+
                             if( false && m_baldi_be_verbose ) {
                               cout << "The profile position was " << ( *m_profile )[ m_row_i - 1 ] << endl;
                             }
-                            
+
                             m_baldi_position_boltzmann_gibbs_change =
                               m_unconditional_baldi_position_boltzmann_gibbs_changes_vector[ m_row_i - 1 ];
-                            
+
                             // Convert the profile position to Boltzmann-Gibbs.
                             m_baldi_position_boltzmann_gibbs.fromProfilePosition(
                               ( *m_profile )[ m_row_i - 1 ]
@@ -8772,10 +7547,10 @@ template <class ProfileType,
                               cout << ".. so the corresponding m_baldi_position_boltzmann_gibbs is " << m_baldi_position_boltzmann_gibbs << endl;
                               cout << "Scaled, m_baldi_position_boltzmann_gibbs_change is " << m_baldi_position_boltzmann_gibbs_change << endl;
                             }
-                            
+
                             m_baldi_position_boltzmann_gibbs_change.m_scalar /=
                               epsilon;
-                            
+
                             // In the Baldi paper, this corresponds to equation
                             // 3-prime (the learning rate should incorporate the
                             // current score):
@@ -8784,14 +7559,14 @@ template <class ProfileType,
                             // This is wrong, but seems to do better: ! Even still, not so good.
                             //m_baldi_position_boltzmann_gibbs_change.m_scalar *=
                             //  m_endingScore; // the current score...
-                            
+
                             if( false && m_baldi_be_verbose ) {
                               cout << "weighted by epsilon, m_baldi_position_boltzmann_gibbs_change is " << m_baldi_position_boltzmann_gibbs_change << endl;
                             }
-                            
+
                             m_baldi_position_boltzmann_gibbs +=
                               m_baldi_position_boltzmann_gibbs_change;
-                            
+
                             m_baldi_position_boltzmann_gibbs.toProfilePosition(
                               ( *m_profile )[ m_row_i - 1 ]
                             );
@@ -8805,13 +7580,13 @@ template <class ProfileType,
                               cout << "Normalized, the profile position is now " << ( *m_profile )[ m_row_i - 1 ] << endl;
                             }
                           } // End foreach row_i
-  
+
                           // No need to recalculate the score.  We have it.
                           m_endingScore = score_after_modification;
                         } else { // if !baldiHybird or if Baldi / Siegel gave us a better result than UBW .. else ..
                           for( m_row_i = last_row; m_row_i > 0; m_row_i-- ) {
-                            if( ( m_trainingParameters.positionShouldBeTrained != NULL ) &&
-                                !( *m_trainingParameters.positionShouldBeTrained )[ m_row_i - 1 ] ) {
+                            if( ( m_trainingParameters.positionShouldBeTrained.size() > 0 ) &&
+                                !m_trainingParameters.positionShouldBeTrained[ m_row_i - 1 ] ) {
                               // Then don't train it.
                               continue;
                             }
@@ -8826,14 +7601,14 @@ template <class ProfileType,
                           // No need to recalculate the score; we already have it.
                           // We need score_after_modification to be updated for later use..
                           score_after_modification = m_endingScore;
-                         
+
                           if( m_trainingParameters.baldiHybrid ) {
                             if( m_trainingParameters.verbosity >= VERBOSITY_Low ) {
                               cout << " ";
                             } // End if verbose
                           }
                         } // End if !baldiHybrid or if Baldi / Siegel gave us a better result than UBW .. else ..
-  
+
 #if defined( USE_DEL_IN_DEL_OUT ) && !defined( USE_SWENTRY_SWEXIT )
                         // Make sure the scaled distribution is up-to-date.
                         if( ( m_row_i - 1 ) < ( m_profile->length() - 1 ) ) {
@@ -8860,7 +7635,7 @@ template <class ProfileType,
                              ( (
                                 m_trainingParameters.proposeProfileLengthChanges &&
                                 revert_globals_for_changed_profile_length
-                                ) ? true : 
+                                ) ? true :
 #ifdef ALLOW_BOLTZMANN_GIBBS
                                ( ( m_trainingParameters.baldiLearningRate > 0 ) ? ( m_endingScore <= score_after_modification ) : ( m_endingScore <= m_startingScore_position_step ) )
 #else // !ALLOW_BOLTZMANN_GIBBS
@@ -8880,13 +7655,13 @@ template <class ProfileType,
 #ifdef ALLOW_BOLTZMANN_GIBBS
                         }
 #endif // ALLOW_BOLTZMANN_GIBBS
-                      
+
                         if( m_bw_inverse_scalar !=
                             m_trainingParameters.minBaumWelchInverseScalar ) {
                           m_profile->copyFrom( m_unconditional_backupProfile );
                         } // End if this is not the first attempt, restore from
                           // backups.
-                      
+
                         if(
                           !(
                             m_trainingParameters.proposeProfileLengthChanges &&
@@ -8899,12 +7674,12 @@ template <class ProfileType,
                           && ( ubw_cbw_hybrid ? ( ( m_iteration % 2 ) == 0 ) : true ) // only train positions every *other* iter
                         ) {
                           for( m_row_i = last_row; m_row_i > 0; m_row_i-- ) {
-                            if( ( m_trainingParameters.positionShouldBeTrained != NULL ) &&
-                            !( *m_trainingParameters.positionShouldBeTrained )[ m_row_i - 1 ] ) {
+                            if( ( m_trainingParameters.positionShouldBeTrained.size() > 0 ) &&
+                            !m_trainingParameters.positionShouldBeTrained[ m_row_i - 1 ] ) {
                               // Then don't train it.
                               continue;
                             }
-                      
+
                             //if(
                             //  revert_globals_for_changed_profile_length &&
                             //  (
@@ -8922,19 +7697,19 @@ template <class ProfileType,
                             m_position_entente.normalize(
                               m_trainingParameters.profileValueMinimum
                             );
-                      
+
                             if( m_bw_inverse_scalar > 0 ) {
                               m_position_entente.m_scalar *=
                                 m_bw_inverse_scalar;
                               m_position_entente.unscale();
-                      
+
                               ( *m_profile )[ m_row_i - 1 ] += m_position_entente;
                               ( *m_profile )[ m_row_i - 1 ].normalize(
                                 m_trainingParameters.profileValueMinimum
                               );
                               // We wait to update the scaled_match_distributions
                               // until we've updated the globals.
-                            } else { // if m_bw_inverse_scalar > 0 .. else 
+                            } else { // if m_bw_inverse_scalar > 0 .. else
                               // TODO: REMOVE
                               //cout << "not using baldi." << endl;
                               ( *m_profile )[ m_row_i - 1 ] = m_position_entente;
@@ -8944,7 +7719,7 @@ template <class ProfileType,
                             } // End if m_bw_inverse_scalar > 0 .. else ..
                           } // End foreach row_i
                         } // End if trainProfilePositions
-                      
+
                         // Okay, now update the globals
                         if( m_trainingParameters.trainProfileGlobals
                             // TODO: REMOVE.  TESTING.
@@ -8978,15 +7753,15 @@ template <class ProfileType,
                               //cout << "After, they are ";
                               //m_globalsToRevertTo.writeExceptPositions( cout );
                               //cout << endl;
-                      
+
                               m_profile->copyExceptPositions( m_globalsToRevertTo );
                               m_profile->normalizeExceptPositions( m_trainingParameters.profileValueMinimum );
-                      
+
                               // TODO: REMOVE
                               //cout << "globals are now " << endl;
                               //m_profile->writeExceptPositions( cout );
                               //cout << endl;
-                      
+
                               // TODO: REMOVE?
                               if( ensure_even_indels_after_reverting ) {
                                 ProbabilityType average_indel_open = 1.0;
@@ -9022,7 +7797,7 @@ template <class ProfileType,
                             // Don't stop training yet:
                             just_reverted_globals_for_changed_profile_length = true;
                             globals_are_at_starting_values = true;
-                      
+
                             // only update the one time.
                             m_bw_inverse_scalar =
                               m_trainingParameters.maxBaumWelchInverseScalar;
@@ -9039,7 +7814,7 @@ template <class ProfileType,
                             } else {
                               m_global_entente.m_scalar *= m_bw_inverse_scalar;
                               m_global_entente.unscale();
-                            
+
                               // TODO: REMOVE
                               //cout << "m_bw_inverse_scalar is " << m_bw_inverse_scalar << endl;
                               //cout << "proposed new profile globals will add ";
@@ -9071,9 +7846,9 @@ template <class ProfileType,
                           cout <<
                             "[debug] Before profile update, the total score is " << m_endingScore << endl;
                         } // End if DEBUG_All
-                      
+
                           bool swap =
-                            m_dynamic_programming.forward_score( 
+                            m_dynamic_programming.forward_score(
                               m_trainingParameters,
                               false, // don't use viterbi
                               *m_profile,
@@ -9102,7 +7877,7 @@ template <class ProfileType,
                           if( false ) {
                             cout << "using scaled_match_distributions, m_endingScore is " << m_endingScore << endl;
                             bool swap =
-                              m_dynamic_programming.forward_score( 
+                              m_dynamic_programming.forward_score(
                                 m_trainingParameters,
                                 false, // don't use viterbi
                                 *m_profile,
@@ -9127,7 +7902,7 @@ template <class ProfileType,
                           } // End false
 #endif // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT
                           //m_endingScore =
-                          //  m_dynamic_programming.forward_score( 
+                          //  m_dynamic_programming.forward_score(
                           //    m_trainingParameters,
                           //    *m_profile,
                           //    m_sequences,
@@ -9136,10 +7911,10 @@ template <class ProfileType,
                           //    &sequence_scores,
                           //    &largest_sequence_score
                           //  );
-                      
+
                           // TODO: REMOVE?
                           assert( !isnan( m_endingScore ) );
-                      
+
                         if( ( m_trainingParameters.debug >= DEBUG_All ) ) {
                           cout <<
                             "[debug] [Profile] " <<
@@ -9152,7 +7927,7 @@ template <class ProfileType,
                             endl;
                         } // End if DEBUG_All
                       } // End foreach m_bw_inverse_scalar..
-                  } else { // if useUnconditionalBaumWelch .. else .. 
+                  } else { // if useUnconditionalBaumWelch .. else ..
                     if(
                       !revert_globals_for_changed_profile_length
                     ) {
@@ -9256,7 +8031,7 @@ template <class ProfileType,
                         // And don't keep going with these globals iters,
                         // just start over.
                         m_bw_inverse_scalar =
-                          m_trainingParameters.maxBaumWelchInverseScalar_globals;                          
+                          m_trainingParameters.maxBaumWelchInverseScalar_globals;
                         m_position_cycle =
                           m_trainingParameters.maxPositionCycles_globals;
                         if( m_trainingParameters.debug >= DEBUG_All ) {
@@ -9339,7 +8114,7 @@ template <class ProfileType,
                         cout <<
                           "[debug] Before profile globals update, the total score is " << m_endingScore << endl;
                       } // End if DEBUG_All
-                      
+
                         // TODO: REMOVE
                         //cout << "calling m_dynamic_programming.forward_score(..)" << endl;
                         //cout << "m_trainingParameters are " << m_trainingParameters << endl;
@@ -9384,7 +8159,7 @@ template <class ProfileType,
 #endif // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT
 
                         bool swap =
-                          m_dynamic_programming.forward_score( 
+                          m_dynamic_programming.forward_score(
                             m_trainingParameters,
                             false, // don't use viterbi
                             *m_profile,
@@ -9409,7 +8184,7 @@ template <class ProfileType,
                         }
                         forward_rows_are_already_rotated_and_calculated = true;
                         //m_endingScore =
-                        //  m_dynamic_programming.forward_score( 
+                        //  m_dynamic_programming.forward_score(
                         //    m_trainingParameters,
                         //    *m_profile,
                         //    m_sequences,
@@ -9441,8 +8216,8 @@ template <class ProfileType,
                 ( m_trainingPhase == TRAINING_PHASE_Positions ) &&
                 m_trainingParameters.trainProfilePositions
               ) {
-                if( ( m_trainingParameters.positionShouldBeTrained != NULL ) &&
-                    !( *m_trainingParameters.positionShouldBeTrained )[ m_row_i - 1 ] ) {
+                if( ( m_trainingParameters.positionShouldBeTrained.size() > 0 ) &&
+                    !m_trainingParameters.positionShouldBeTrained[ m_row_i - 1 ] ) {
                   // We're skipping (parent profile) the training for this position ..
                   if( m_trainingParameters.useUnconditionalBaumWelch ) {
                     // TODO: REMOVE?  Unnecessary.
@@ -9480,8 +8255,8 @@ template <class ProfileType,
                          m_trainingParameters.baumWelchInverseScalarIncrement
                   ) {
                     m_endingScore = m_startingScore_position_step;
-                    if( ( m_trainingParameters.positionShouldBeTrained != NULL ) &&
-                        !( *m_trainingParameters.positionShouldBeTrained )[ m_row_i - 1 ] ) {
+                    if( ( m_trainingParameters.positionShouldBeTrained.size() > 0 ) &&
+                        !m_trainingParameters.positionShouldBeTrained[ m_row_i - 1 ] ) {
                       // We're skipping (parent profile) the training for this position ..
                       // TODO: REMOVE
                       //cout << "SKIPPING PROFLE at position " << ( m_row_i - 1 ) << endl;
@@ -9533,11 +8308,11 @@ template <class ProfileType,
                           if( m_trainingParameters.baldiHybrid ) {
                             // First determine the result if we were just using straight-up CBW.
                             ( *m_profile )[ m_row_i - 1 ] = m_position_entente; // already normalized.
-                            
+
                             m_endingScore = 1.0;
                             for( m_seq_i = 0; m_seq_i < m_sequence_count; m_seq_i++ ) {
                               m_endingScore *=
-                                m_coefficients_vector[ m_seq_i ].calculateScore( 
+                                m_coefficients_vector[ m_seq_i ].calculateScore(
                                   ( *m_profile )[ m_row_i - 1 ]
                                 );
                             } // End foreach seq_i, recompute the score.
@@ -9566,10 +8341,10 @@ template <class ProfileType,
                             if( m_baldi_be_verbose ) {
                               cout << "weighted by the learning-rate and by current score m_startingScore_position_step, m_baldi_position_boltzmann_gibbs_change is " << m_baldi_position_boltzmann_gibbs_change << endl;
                             }
-                          
+
                             m_baldi_position_boltzmann_gibbs +=
                               m_baldi_position_boltzmann_gibbs_change;
-                          
+
                             m_baldi_position_boltzmann_gibbs.toProfilePosition(
                               ( *m_profile )[ m_row_i - 1 ]
                             );
@@ -9583,7 +8358,7 @@ template <class ProfileType,
                             score_after_modification = 1.0;
                             for( m_seq_i = 0; m_seq_i < m_sequence_count; m_seq_i++ ) {
                               score_after_modification *=
-                                m_coefficients_vector[ m_seq_i ].calculateScore( 
+                                m_coefficients_vector[ m_seq_i ].calculateScore(
                                   ( *m_profile )[ m_row_i - 1 ]
                                 );
                             } // End foreach seq_i, recompute the score.
@@ -9629,19 +8404,19 @@ template <class ProfileType,
                                  ++finding_the_peak_attempts,
                                    ( epsilon *= epsilon_scale_value )
                             ) { // for( finding_the_peak_attempts ... )
-                          
+
                               if( m_baldi_be_verbose ) {
                                 cout << " Conditional Baldi / Siegel with finding-the-peak with epsilon = " << epsilon << endl;
                               }
                               m_baldi_position_boltzmann_gibbs_change.m_scalar /=
                                 epsilon;
-                            
+
                               m_baldi_position_boltzmann_gibbs +=
                                 m_baldi_position_boltzmann_gibbs_change;
 
                               // Save the position first so we can see if we got a change.
                               baldi_last_profile_position = ( *m_profile )[ m_row_i - 1 ];
-                            
+
                               m_baldi_position_boltzmann_gibbs.toProfilePosition(
                                 ( *m_profile )[ m_row_i - 1 ]
                               );
@@ -9675,7 +8450,7 @@ template <class ProfileType,
                                 score_after_modification = 1.0;
                                 for( m_seq_i = 0; m_seq_i < m_sequence_count; m_seq_i++ ) {
                                   score_after_modification *=
-                                    m_coefficients_vector[ m_seq_i ].calculateScore( 
+                                    m_coefficients_vector[ m_seq_i ].calculateScore(
                                       ( *m_profile )[ m_row_i - 1 ]
                                     );
                                 } // End foreach seq_i, recompute the score.
@@ -9686,7 +8461,7 @@ template <class ProfileType,
                                 m_baldi_position_boltzmann_gibbs_change;
                               m_baldi_position_boltzmann_gibbs_change.m_scalar *=
                                 epsilon;
-                          
+
                               if( m_baldi_be_verbose ) {
                                 cout << "Got score diff " << ( ( m_startingScore_position_step > score_after_modification ) ? "(negative) " : "" ) << ( ( m_startingScore_position_step > score_after_modification ) ? ( m_startingScore_position_step / score_after_modification ) : ( score_after_modification / m_startingScore_position_step ) ) << " after changing the position by " <<
                                   m_baldi_position_boltzmann_gibbs_change.createUnscaledCopy() << ": was " << m_startingScore_position_step << "; is now " << score_after_modification << endl;
@@ -9711,19 +8486,19 @@ template <class ProfileType,
                                   assert( sample_indices[ 0 ] == 0 );
                                   assert( sample_indices[ 1 ] == 1 );
                                   assert( sample_indices[ 2 ] == 2 );
-                          
+
                                   if(
                                      score_after_modification < sample_scores[ 0 ]
                                     ) {
                                     // Score went down.  Flip.
                                     epsilon_scale_value = epsilon_scale_value_scale_factor;
-                          
+
                                     // Put the new score in the front..
                                     sample_scores[ 1 ] = sample_scores[ 0 ];
                                     sample_epsilons[ 1 ] = sample_epsilons[ 0 ];
                                     sample_scores[ 0 ] = score_after_modification;
                                     sample_epsilons[ 0 ] = epsilon;
-                          
+
                                     // We've already calculated epsilon*2 (it's in sample_scores[ 1 ])
                                    epsilon *= epsilon_scale_value;
                                   } else if( score_after_modification == sample_scores[ 0 ] ) {
@@ -9744,7 +8519,7 @@ template <class ProfileType,
                                     sample_scores[ 1 ] = score_after_modification;
                                     sample_epsilons[ 1 ] = epsilon;
                                   }
-                          
+
                                 } else if( sample_epsilons[ 2 ] == 0 ) {
                                   assert( sample_indices[ 0 ] == 0 );
                                   assert( sample_indices[ 1 ] == 1 );
@@ -9755,7 +8530,7 @@ template <class ProfileType,
                                   sample_epsilons[ 2 ] =
                                     epsilon;
                                 } else { // if we're still working on getting the first samples .. else ..
-                          
+
                                   assert( finding_the_peak_attempts > 2 );
 
                                   // Put the new score at the end..
@@ -9763,14 +8538,14 @@ template <class ProfileType,
                                   sample_indices[ 0 ] = sample_indices[ 1 ];
                                   sample_indices[ 1 ] = sample_indices[ 2 ];
                                   sample_indices[ 2 ] = temp_index;
-                          
+
                                   sample_scores[ temp_index ] =
                                     score_after_modification;
                                   sample_epsilons[ temp_index ] =
                                     epsilon;
-                          
+
                                 }  // End if we're still working on getting the first samples .. else ..
-                          
+
                               } else { // if the epsilon scale value is < 1 .. else ..
                                 assert( epsilon_scale_value == epsilon_scale_value_scale_factor );
 
@@ -9788,20 +8563,20 @@ template <class ProfileType,
                                   assert( sample_indices[ 0 ] == 0 );
                                   assert( sample_indices[ 1 ] == 1 );
                                   assert( sample_indices[ 2 ] == 2 );
-                          
+
                                   if(
                                      score_after_modification < sample_scores[ 0 ]
                                     ) {
                                     // Score went down..
                                     epsilon_scale_value =
                                       ( 1.0 / epsilon_scale_value_scale_factor );
-                          
+
                                     // Put the new score in the front..
                                     sample_scores[ 1 ] = sample_scores[ 0 ];
                                     sample_epsilons[ 1 ] = sample_epsilons[ 0 ];
                                     sample_scores[ 0 ] = score_after_modification;
                                     sample_epsilons[ 0 ] = epsilon;
-                          
+
                                     // We've already calculated epsilon/2 (it's in sample_scores[ 1 ])
                                     epsilon *= epsilon_scale_value;
                                   } else if( score_after_modification == sample_scores[ 0 ] ) {
@@ -9838,34 +8613,34 @@ template <class ProfileType,
                                     sample_scores[ 1 ] = score_after_modification;
                                     sample_epsilons[ 1 ] = epsilon;
                                   }
-                          
+
                                 } else if( sample_epsilons[ 2 ] == 0 ) {
                                   assert( sample_indices[ 0 ] == 0 );
                                   assert( sample_indices[ 1 ] == 1 );
                                   assert( sample_indices[ 2 ] == 2 );
-                          
+
                                   sample_scores[ 2 ] =
                                     score_after_modification;
                                   sample_epsilons[ 2 ] =
                                     epsilon;
-                          
+
                                 } else { // If still working on filling the 3 samples for the first time .. else ..
-                          
+
                                   // Put the new score at the end..
                                   temp_index          = sample_indices[ 0 ];
                                   sample_indices[ 0 ] = sample_indices[ 1 ];
                                   sample_indices[ 1 ] = sample_indices[ 2 ];
                                   sample_indices[ 2 ] = temp_index;
-                          
+
                                   sample_scores[ temp_index ] =
                                     score_after_modification;
                                   sample_epsilons[ temp_index ] =
                                     epsilon;
-                          
+
                                 } // End if still working on filling the 3 samples for the first time .. else ..
-                          
+
                               } // End if the epsilon scale value is < 1 .. else ..
-                          
+
                               if( m_baldi_be_verbose ) {
                                 cout <<
                                   "CONTINUE: The three sample points are ( [ " <<
@@ -9875,7 +8650,7 @@ template <class ProfileType,
                                   sample_scores[ sample_indices[ 1 ] ] << " ], [ " <<
                                   sample_epsilons[ sample_indices[ 2 ] ] << ", " <<
                                   sample_scores[ sample_indices[ 2 ] ] << " ] )" << endl;
-                                cout << "Scale value is " << epsilon_scale_value << 
+                                cout << "Scale value is " << epsilon_scale_value <<
                                   ".  Local epsilon was " << epsilon << endl;
                               }
                               if(
@@ -9921,7 +8696,7 @@ template <class ProfileType,
                                   cout << "'";
                                 } // End if verbose
                                 break;
-                              } else if( 
+                              } else if(
                                 ( sample_epsilons[ 2 ] == 0 ) &&
                                 ( finding_the_peak_attempts >=
                                   m_trainingParameters.siegelMaxFindingTheGradientAttempts_positions )
@@ -9967,7 +8742,7 @@ template <class ProfileType,
                                 }
                                 break;
                               }
-                          
+
                             } // End foreach finding_the_peak_attempts : getting three sample points (trapping the peak)
                             // TODO: REMOVE
                             if( m_trainingParameters.verbosity >= VERBOSITY_Low ) {
@@ -9986,7 +8761,7 @@ template <class ProfileType,
                               if( m_baldi_be_verbose ) {
                                 cout << "The score using the estimated plateau epsilon is " << score_after_modification << endl;
                               }
-  
+
                             } else if(
                                sample_scores[ sample_indices[ 2 ] ] <=
                                sample_scores[ sample_indices[ 1 ] ]
@@ -10005,7 +8780,7 @@ template <class ProfileType,
                               }
                               assert( sample_epsilons[ sample_indices[ 2 ] ] >= sample_epsilons[ sample_indices[ 1 ] ] );
                               assert( sample_epsilons[ sample_indices[ 1 ] ] >= sample_epsilons[ sample_indices[ 0 ] ] );
-                            
+
                               if( m_baldi_be_verbose ) {
                                 cout <<
                                   "Trapped the peak: The three sample points are ( [ " <<
@@ -10022,7 +8797,7 @@ template <class ProfileType,
                                       m_trainingParameters.siegelMaxRefiningThePeakSteps_positions );
                                    ++refining_the_peak_steps
                               ) {
-                            
+
                                 // Find the epsilon at which the score is maximized, under the
                                 // assumption that the landscape is locally quadratic.
                                 epsilon =
@@ -10034,7 +8809,7 @@ template <class ProfileType,
                                     sample_epsilons[ sample_indices[ 2 ] ],
                                     sample_scores[ sample_indices[ 2 ] ]
                                   );
-                                  
+
                                 if( m_baldi_be_verbose ) {
                                   cout << "estimated peak epsilon is " << epsilon << endl;
                                 }
@@ -10052,13 +8827,13 @@ template <class ProfileType,
                                       cout << "sample_scores[ sample_indices[ 2 ] ] is " << sample_scores[ sample_indices[ 2 ] ] << endl;
                                       exit( 1 );
                                   }
-                                
+
                                 m_baldi_position_boltzmann_gibbs_change.m_scalar /=
                                   epsilon;
-                                  
+
                                 m_baldi_position_boltzmann_gibbs +=
                                   m_baldi_position_boltzmann_gibbs_change;
-                                  
+
                                 m_baldi_position_boltzmann_gibbs.toProfilePosition(
                                   ( *m_profile )[ m_row_i - 1 ]
                                 );
@@ -10068,25 +8843,25 @@ template <class ProfileType,
                                 ( *m_profile )[ m_row_i - 1 ].normalize(
                                   m_trainingParameters.profileValueMinimum
                                 );
-                                  
+
                                 score_after_modification = 1.0;
                                 for( m_seq_i = 0; m_seq_i < m_sequence_count; m_seq_i++ ) {
                                   score_after_modification *=
-                                    m_coefficients_vector[ m_seq_i ].calculateScore( 
+                                    m_coefficients_vector[ m_seq_i ].calculateScore(
                                       ( *m_profile )[ m_row_i - 1 ]
                                     );
                                 } // End foreach seq_i, recompute the score.
-                                  
+
                                 // Return it to what it was before.
                                 m_baldi_position_boltzmann_gibbs -=
                                   m_baldi_position_boltzmann_gibbs_change;
                                 m_baldi_position_boltzmann_gibbs_change.m_scalar *=
                                   epsilon;
-                                  
+
                                 if( m_baldi_be_verbose ) {
                                   cout << "The score using the estimated peak epsilon is " << score_after_modification << endl;
                                 }
-                                  
+
                                 if( score_after_modification < sample_scores[ sample_indices[ 1 ] ] ) {
                                   // See if we're converged..
                                   if( ( ( sample_scores[ sample_indices[ 1 ] ] - score_after_modification ) / sample_scores[ sample_indices[ 1 ] ] ) < m_trainingParameters.siegelRefiningThePeakStepsConvergenceThreshold ) {
@@ -10119,7 +8894,7 @@ template <class ProfileType,
                                     sample_indices[ 1 ] = temp_index;
                                   }
                                 } // End if the new score is worse .. else the same .. else better ..
-                          
+
                                 sample_scores[ temp_index ] =
                                   score_after_modification;
                                 sample_epsilons[ temp_index ] =
@@ -10135,24 +8910,24 @@ template <class ProfileType,
                               epsilon = sample_epsilons[ sample_indices[ 1 ] ];
                               score_after_modification = sample_scores[ sample_indices[ 1 ] ];
                             } // End if we got caught on a plateau .. else if we trapped a peak ..
-                          
+
                             // Even if we did manage to trap the peak, our new score might
                             // not be better than the old score (stranger things have
                             // happened)...
-                            if( 
+                            if(
                                ( sample_scores[ sample_indices[ 2 ] ] >
                                  sample_scores[ sample_indices[ 1 ] ] )
                                 ||
                                ( score_after_modification <
                                  m_startingScore_position_step )
                               ) {
-                          
+
                               if( m_baldi_be_verbose ) {
                                 cout << "Darn.  Since we couldn't find an adequate peak, we'll use the best epsilon we've seen so far." << endl;
                               }
-                          
+
                               // In case we did find the peak and modified for it but it did no good,
-                              if( 
+                              if(
                                  sample_scores[ sample_indices[ 2 ] ] >
                                  sample_scores[ sample_indices[ 1 ] ]
                                 ) {
@@ -10162,19 +8937,19 @@ template <class ProfileType,
                                 epsilon = sample_epsilons[ sample_indices[ 1 ] ];
                                 score_after_modification = sample_scores[ sample_indices[ 1 ] ];
                               }
-                          
+
                               if( m_baldi_be_verbose ) {
                                 cout << "epsilon is now " << epsilon << endl;
                                 cout << "score_after_modification is now " << score_after_modification << endl;
                               }
                             } // End if we have to fall back on the best we've found so far
-                          
+
                             m_baldi_position_boltzmann_gibbs_change.m_scalar /=
                               epsilon;
-                          
+
                             m_baldi_position_boltzmann_gibbs +=
                               m_baldi_position_boltzmann_gibbs_change;
-                              
+
                             m_baldi_position_boltzmann_gibbs.toProfilePosition(
                               ( *m_profile )[ m_row_i - 1 ]
                             );
@@ -10198,12 +8973,12 @@ template <class ProfileType,
                               if( m_trainingParameters.verbosity >= VERBOSITY_Low ) {
                                 cout << "~";
                               } // End if verbose
-                            
+
                               m_endingScore = score_after_modification;
                             } else { // if Baldi / Siegel gave us a better result than CBW .. else ..
                               // We are better off just using the usual CBW update.
                               ( *m_profile )[ m_row_i - 1 ] = m_position_entente;
-                              
+
                               if( m_trainingParameters.verbosity >= VERBOSITY_Low ) {
                                 cout << " ";
                               } // End if verbose
@@ -10217,7 +8992,7 @@ template <class ProfileType,
 //                          // TODO: The problem with trying to call this is that the forward_score methods need to be updated to take in the scaled distros..
 //                          // Make sure the score is what we say it is.
 //                          score_after_modification =
-//                         m_dynamic_programming.forward_score( 
+//                         m_dynamic_programming.forward_score(
 //                           m_trainingParameters,
 //                           *m_profile,
 //                           m_sequences,
@@ -10226,7 +9001,7 @@ template <class ProfileType,
 //                           NULL,
 //                           NULL
 //                         );
-//                          
+//
 //#endif // !NDEBUG
 
                           if( m_baldi_be_verbose ) {
@@ -10265,12 +9040,12 @@ template <class ProfileType,
                           }
 #endif // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT
                         } // End if baldiLearningRate > 0 .. else ..
-                      } // End if m_bw_inverse_scalar > 0 .. else 
+                      } // End if m_bw_inverse_scalar > 0 .. else
                     } // End if we are skipping (parent profile) training for this position .. else ..
-                  
+
                     if( m_trainingParameters.debug >= DEBUG_All ) {
-                      if( ( m_trainingParameters.positionShouldBeTrained != NULL ) &&
-                          !( *m_trainingParameters.positionShouldBeTrained )[ m_row_i - 1 ] ) {
+                      if( ( m_trainingParameters.positionShouldBeTrained.size() > 0 ) &&
+                          !m_trainingParameters.positionShouldBeTrained[ m_row_i - 1 ] ) {
                         // We're skipping the (parent profile) training for this
                         // position ..
                       } else {
@@ -10287,8 +9062,8 @@ template <class ProfileType,
                     // through the rows), nor do we need to change the backward
                     // rows (since we do that on the next round, after
                     // decrementing m_row_i).
-                    if( ( m_trainingParameters.positionShouldBeTrained != NULL ) &&
-                        !( *m_trainingParameters.positionShouldBeTrained )[ m_row_i - 1 ] ) {
+                    if( ( m_trainingParameters.positionShouldBeTrained.size() > 0 ) &&
+                        !m_trainingParameters.positionShouldBeTrained[ m_row_i - 1 ] ) {
                       // We're skipping the (parent profile) training for this
                       // position ..
                       //m_position_entente.zero();
@@ -10297,33 +9072,33 @@ template <class ProfileType,
                       m_endingScore = 1.0;
                       for( m_seq_i = 0; m_seq_i < m_sequence_count; m_seq_i++ ) {
                         sequence_score =
-                          m_coefficients_vector[ m_seq_i ].calculateScore( 
+                          m_coefficients_vector[ m_seq_i ].calculateScore(
                             ( *m_profile )[ m_row_i - 1 ]
                           );
-  
+
                         sequence_scores[ m_seq_i ] = sequence_score;
                         if( sequence_score > largest_sequence_score ) {
                           largest_sequence_score = sequence_score;
                         }
-                          
+
                         if( m_trainingParameters.debug >= DEBUG_All ) {
                           cout <<
                             "[debug] [Row " << m_row_i << " (using scalar = (1/" << m_bw_inverse_scalar << ")] " <<
                             "After Baum-Welch update, sequence " << m_seq_i <<
                             " score is " << sequence_score << "." << endl;
                         } // End if DEBUG_All
-  
+
                         m_endingScore *= sequence_score;
                       } // End foreach sequence, update forward, backward, entente,
                         // and recalculate ending score.
-  
+
                       // TODO: REMOVE?
                       assert( !isnan( m_endingScore ) );
                     } // End if we are skipping (parent profile) training for this position .. else ..
                   } // End foreach m_bw_inverse_scalar
                 } // End if useUnconditionalBaumWelch .. else ..
               } // End if ( m_trainingPhase != TRAINING_PHASE_Positions ) .. else ..
-              
+
               if(
                 (
                   ( m_trainingPhase == TRAINING_PHASE_Positions ) &&
@@ -10379,7 +9154,7 @@ template <class ProfileType,
                   //assert( percentChange( m_endingScore, m_startingScore_position_step ) > -100 );
                   //}
                     //}
-          
+
                   // TODO: REMOVE (?)
                   if( m_trainingParameters.verbosity >= VERBOSITY_Low ) {
                     // TODO: REMOVE
@@ -10417,7 +9192,7 @@ template <class ProfileType,
 //                        } // End foreach tmp_pos_i
 //#endif // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT
 //                        bool swap =
-//                          m_dynamic_programming.forward_score( 
+//                          m_dynamic_programming.forward_score(
 //                            m_trainingParameters,
 //                            false, // don't use viterbi
 //                            *m_profile,
@@ -10447,7 +9222,7 @@ template <class ProfileType,
 //                        } // End foreach tmp_pos_i
 //#endif // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT
 //                        swap =
-//                          m_dynamic_programming.forward_score( 
+//                          m_dynamic_programming.forward_score(
 //                            m_trainingParameters,
 //                            false, // don't use viterbi
 //                            *m_profile,
@@ -10469,7 +9244,7 @@ template <class ProfileType,
                       assert( false );
                     }
                   } // End if verbose
-                  
+
                   if( m_trainingParameters.debug > DEBUG_None ) {
                     cout << "[debug] Rejecting and reverting, since the score went down." << endl;
                   } // End if debug
@@ -10480,7 +9255,7 @@ template <class ProfileType,
                             "[debug] Before undoing profile update, the total score is " << m_endingScore <<
                             endl;
                         } // End if DEBUG_All
-              
+
                         m_profile->copyFrom( m_unconditional_backupProfile );
                       } else { // if useUnconditionalBaumWelch .. else ..
                         if( m_trainingParameters.debug >= DEBUG_All ) {
@@ -10488,10 +9263,10 @@ template <class ProfileType,
                             "[debug] Before undoing profile globals update, the total score is " << m_endingScore <<
                             endl;
                         } // End if DEBUG_All
-              
+
                         m_profile->copyExceptPositions( m_backupProfileGlobals );
                       } // End if useUnconditionalBaumWelch .. else ..
-              
+
 #if defined( USE_DEL_IN_DEL_OUT ) && !defined( USE_SWENTRY_SWEXIT )
                         // Make sure the scaled distributions are up-to-date.
                         for( tmp_pos_i = 0; tmp_pos_i < ( m_profile->length() - 1 ); tmp_pos_i++ ) {
@@ -10502,7 +9277,7 @@ template <class ProfileType,
                         } // End foreach tmp_pos_i
 #endif // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT
                       bool swap =
-                        m_dynamic_programming.forward_score( 
+                        m_dynamic_programming.forward_score(
                           m_trainingParameters,
                           false, // don't use viterbi
                           *m_profile,
@@ -10527,7 +9302,7 @@ template <class ProfileType,
                       }
                       forward_rows_are_already_rotated_and_calculated = true;
                       //m_endingScore =
-                      //  m_dynamic_programming.forward_score( 
+                      //  m_dynamic_programming.forward_score(
                       //    m_trainingParameters,
                       //    *m_profile,
                       //    m_sequences,
@@ -10545,13 +9320,13 @@ template <class ProfileType,
                           "[debug] After undoing profile globals update, the total score is " << m_endingScore <<
                           endl;
                       } // End if DEBUG_All
-              
+
                   } else { // ( m_trainingPhase == TRAINING_PHASE_Positions )
                     if( m_trainingParameters.debug >= DEBUG_All ) {
                       cout << "[debug] m_bw_inverse_scalar was " << ( m_bw_inverse_scalar - m_trainingParameters.baumWelchInverseScalarIncrement ) << endl;
                     } // End if DEBUG_All
-                    if( ( m_trainingParameters.positionShouldBeTrained != NULL ) &&
-                        !( *m_trainingParameters.positionShouldBeTrained )[ m_row_i - 1 ] ) {
+                    if( ( m_trainingParameters.positionShouldBeTrained.size() > 0 ) &&
+                        !m_trainingParameters.positionShouldBeTrained[ m_row_i - 1 ] ) {
                       // We're skipping the (parent profile) training for this
                       // position ..
                     } else {
@@ -10573,7 +9348,7 @@ template <class ProfileType,
                       } // End foreach m_seq_i, restore its score from the backup.
                     } // End if we are skipping training for this position .. else ..
                     m_endingScore = m_startingScore_position_step;
-                  } // End if ( m_trainingPhase != TRAINING_PHASE_Positions ) .. else .. 
+                  } // End if ( m_trainingPhase != TRAINING_PHASE_Positions ) .. else ..
                 } else { // ( !disallow_alwaysAccept && m_trainingParameters.alwaysAccept ) || just_reverted_globals_for_changed_profile_length || ( m_endingScore >= m_startingScore_position_step )
                   // Accept changes
                   if(
@@ -10583,12 +9358,12 @@ template <class ProfileType,
                   ) {
                     globals_are_at_starting_values = false;
                   }
-          
+
                   // TODO: REMOVE
                   //if( m_trainingPhase == TRAINING_PHASE_Globals ) {
                   //  cout << "ACCEPTING: (" << m_endingScore << ">" << m_startingScore_position_step << ")" << endl;
                   //}
-          
+
                   // TODO: REMOVE
                   //if( isnan( ( *m_profile )[ ( m_row_i - 1 ) ][ Emission::Match ].total() ) ) {
                   //  cout << "====== total is nan!" << endl;
@@ -10602,7 +9377,7 @@ template <class ProfileType,
                       cout << "+";
                     } // End if !( !disallow_alwaysAccept && m_trainingParameters.alwaysAccept ) || ( m_endingScore >= m_startingScore_position_step )
                   } // End if verbose
-                  
+
                   if( m_trainingParameters.debug > DEBUG_None ) {
                     if( just_reverted_globals_for_changed_profile_length ) {
                       cout << "[debug] Accepting, since we just reverted the globals." << endl;
@@ -10638,28 +9413,28 @@ template <class ProfileType,
                 } // End if debug
               } // End if this isn't a global training step with an internal
                 // row, update the profile.
-          
+
               if( ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
                   ( m_trainingParameters.verbosity <  VERBOSITY_High ) ||
                   m_trainingParameters.verbosity >= VERBOSITY_All ) {
                 cout << ".";
                 cout.flush();
               }
-          
+
               // TODO: REMOVE!
               //if( ( m_row_i > 0 ) &&
               //    ( m_trainingParameters.positionShouldBeTrained != NULL ) &&
-              //    !( *m_trainingParameters.positionShouldBeTrained )[ m_row_i - 1 ] ) {
+              //    !m_trainingParameters.positionShouldBeTrained[ m_row_i - 1 ] ) {
               //  cout << "THE SKIPPED PROFILE POSITION ( " << ( m_row_i - 1 ) << " ) is:" << endl;
               //  cout << ( *m_profile )[ m_row_i - 1 ] << endl;
               //}
-          
-          
+
+
             } while( m_row_i-- > 0 ); // End for each forward row, downto 0 (incl. 0)
 
                   //// TODO: REMOVE!!  TESTING!!
                   //cout << "The profile is now: " << endl << *m_profile << endl;
-          
+
             if(
               ( m_trainingPhase == TRAINING_PHASE_Positions ) &&
               !m_trainingParameters.useUnconditionalBaumWelch &&
@@ -10683,7 +9458,7 @@ template <class ProfileType,
                         } // End foreach tmp_pos_i
 #endif // USE_DEL_IN_DEL_OUT && !USE_SWENTRY_SWEXIT
                 bool swap =
-                  m_dynamic_programming.forward_score( 
+                  m_dynamic_programming.forward_score(
                     m_trainingParameters,
                     false, // don't use viterbi
                     *m_profile,
@@ -10708,7 +9483,7 @@ template <class ProfileType,
                 }
                 forward_rows_are_already_rotated_and_calculated = true;
                 //m_endingScore =
-                //  m_dynamic_programming.forward_score( 
+                //  m_dynamic_programming.forward_score(
                 //    m_trainingParameters,
                 //    *m_profile,
                 //    m_sequences,
@@ -10727,7 +9502,7 @@ template <class ProfileType,
               } // End if DEBUG_All
             } // End if we need to recalculate as this is the end of the
               // position-specifics in this position cycle
-          
+
             if( m_trainingParameters.useUnconditionalBaumWelch &&
                 ( m_trainingPhase == TRAINING_PHASE_Positions ) ) {
               if( ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
@@ -10741,7 +9516,7 @@ template <class ProfileType,
                   cout.flush();
                 }
               }
-            } else { // if useUnconditionalBaumWelch && TRAINING_PHASE_Positions .. else .. 
+            } else { // if useUnconditionalBaumWelch && TRAINING_PHASE_Positions .. else ..
 
               // profile distance is the squared euclidean distance divided by
               // the number of free parameters. Note that the "euclidean
@@ -10751,7 +9526,7 @@ template <class ProfileType,
               // simplex (so the dimensions are not orthogonal), but note that
               // the result would be slightly different if we used a different
               // subset of the parameters in each MultinomialDistribution.
-              
+
               if( m_trainingPhase == TRAINING_PHASE_Globals ) {
                 profile_distance_position_cycle =
                   ( m_startingProfile_position_cycle.euclideanDistanceSquaredExceptPositions( *m_profile ) / m_profile->freeParameterCountExceptPositions() );
@@ -10772,9 +9547,9 @@ template <class ProfileType,
                       profile_distance_position_cycle =
                         ( m_startingProfile_position_cycle.euclideanDistanceSquaredPositions( *m_profile ) / m_profile->freeParameterCountPositions() );
                     } // End if trainProfileGlobals .. else ..
-                  } // End if the profile has changed length .. else .. 
+                  } // End if the profile has changed length .. else ..
 
-              } // End if( m_trainingPhase == TRAINING_PHASE_Globals ) .. else 
+              } // End if( m_trainingPhase == TRAINING_PHASE_Globals ) .. else
               // TODO: REMOVE
               //cout << "AT THE END OF THE POSITION CYCLE, THE PROFILE DISTANCE IS " << profile_distance_position_cycle << endl;
 
@@ -10823,7 +9598,7 @@ template <class ProfileType,
         // simplex (so the dimensions are not orthogonal), but note that
         // the result would be slightly different if we used a different
         // subset of the parameters in each MultinomialDistribution.
-        
+
           // profile_distance is the squared euclidean distance /
           // m_profile->length.
           if(
@@ -10864,7 +9639,7 @@ template <class ProfileType,
           cout.flush();
         }
       } // End for each iteration
-  
+
       // Yay!  Done!
       if( ( m_trainingParameters.verbosity >= VERBOSITY_Low ) &&
           ( m_trainingParameters.verbosity <  VERBOSITY_High ) ||
@@ -10877,7 +9652,7 @@ template <class ProfileType,
 
       //m_scoreImprovement =
       //  m_endingScore - m_scoreBeforeTraining;
-    
+
       if( m_trainingParameters.verbosity >= VERBOSITY_Low ) {
         cout << "Done training.  Final score is " << m_endingScore << ".  Starting score was " << m_scoreBeforeTraining << "." << endl;
         if( m_trainingParameters.proposeProfileLengthChanges ) {
@@ -10901,7 +9676,7 @@ template <class ProfileType,
   percentChange ( ScoreType const & new_val, ScoreType const & old_val )
   {
       if( m_trainingParameters.debug >= DEBUG_All ) {
-       
+
           const double pct_change =
             ( 100.0 * ( toDouble( new_val / old_val ) - 1.0 ) );
         cout << "PERCENT_CHANGE(" << new_val << "," << old_val << "): " << pct_change << endl;
@@ -10909,7 +9684,7 @@ template <class ProfileType,
       } else {
         return ( 100.0 * ( toDouble( new_val / old_val ) - 1.0 ) );
       } // End if DEBUG_All .. else ..
-    } // percentChange( ScoreType const &, ScoreType const & )
+  } // percentChange( ScoreType const &, ScoreType const & )
 
 } // End namespace galosh
 
