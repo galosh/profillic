@@ -205,6 +205,11 @@ main ( int const argc, char ** argv )
       return 0;
     }
 
+    if( vm.count( "debug" ) ) {
+      cout << "[DEBUGGING]\n";
+      return 0;
+    }
+
     // Required options
     if( ( vm.count( "output_profile" ) == 0 ) || ( vm.count( "fasta" ) == 0 ) ) {
       cout << "Usage: " << USAGE() << endl;
