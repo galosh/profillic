@@ -156,7 +156,7 @@ main ( int const argc, char ** argv )
     ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::Parameters params;
     
     po::options_description cmdline_options;
-    cmdline_options.add( generic ).add( config ).add( lengthadjust_opts );
+    cmdline_options.add( generic ).add( params.m_galosh_options_description ).add( config ).add( lengthadjust_opts );
 
     po::options_description config_file_options;
     config_file_options.add( params.m_galosh_options_description ).add( config ).add( lengthadjust_opts );
@@ -172,8 +172,8 @@ main ( int const argc, char ** argv )
     notify( params.m_galosh_options_map );
 
     // TODO: REMOVE
-    cout << params << endl;
-    cout << endl;
+    //cout << params << endl;
+    //cout << endl;
 
 #define USAGE() " " << argv[ 0 ] << " [options] <output profile file> <fasta sequences file>"
 
@@ -211,10 +211,10 @@ main ( int const argc, char ** argv )
       return 0;
     }
 
-    if( params.m_galosh_options_map.count( "debug" ) ) {
-      cout << "[DEBUGGING]\n";
-      return 0;
-    }
+    //if( params.m_galosh_options_map.count( "debug" ) ) {
+    //  cout << "[DEBUGGING]\n";
+    //  return 0;
+    //}
 
     // Required options
     if( ( params.m_galosh_options_map.count( "output_profile" ) == 0 ) || ( params.m_galosh_options_map.count( "fasta" ) == 0 ) ) {
@@ -235,7 +235,7 @@ main ( int const argc, char ** argv )
 
     // TODO: ERE I AM
     Train<ProbabilityType, ScoreType, MatrixValueType, ResidueType, SequenceResidueType> train;
-    train.train( params.m_galosh_options_map );
+    train.train( params );
 
     return 0;
   } catch( std::exception& e ) { /// exceptions thrown by boost stuff (etc)

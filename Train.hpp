@@ -93,9 +93,11 @@ public:
    **/
   ScoreType
   train (
-    boost::program_options::variables_map const & vm
+    typename ProfileTrainer<ProfileTreeRoot<ResidueType, ProbabilityType>, ScoreType, MatrixValueType, SequenceResidueType, ProfileTreeRoot<ResidueType, ProbabilityType> >::Parameters & training_parameters_template
   ) const
   {
+    boost::program_options::variables_map const & vm = training_parameters_template.m_galosh_options_map;
+
     typedef ProfileTreeRoot<ResidueType, ProbabilityType> ProfileType;
 
     DynamicProgramming<ResidueType, ProbabilityType, ScoreType, MatrixValueType> dp;
@@ -262,11 +264,11 @@ public:
 
     return
       train(
-        vm,
+        training_parameters_template,
         fasta,
         profile
       );
-  } // train( boost::program_options::variables_map const & )
+  } // train( Parameters const & )
 
   /**
    * \fn train
@@ -274,13 +276,38 @@ public:
    **/
   ScoreType
   train (
-    boost::program_options::variables_map const & vm,
+    typename ProfileTrainer<ProfileTreeRoot<ResidueType, ProbabilityType>, ScoreType, MatrixValueType, SequenceResidueType, ProfileTreeRoot<ResidueType, ProbabilityType> >::Parameters & training_parameters_template,
     Fasta<SequenceResidueType> const & fasta,
     ProfileTreeRoot<ResidueType, ProbabilityType> & profile
   ) const
   {
     typedef ProfileTreeRoot<ResidueType, ProbabilityType> ProfileType;
     typedef ProfileTreeRoot<ResidueType, ProbabilityType> InternalNodeType;
+
+    boost::program_options::variables_map const & vm = training_parameters_template.m_galosh_options_map;
+
+    for (const auto& it : vm ) {
+  std::cout << it.first.c_str() << " = ";
+  auto& value = it.second.value();
+  if (auto v = boost::any_cast<bool>(&value))
+    std::cout << *v;
+  else if (auto v = boost::any_cast<double>(&value))
+    std::cout << *v;
+  else if (auto v = boost::any_cast<float>(&value))
+    std::cout << *v;
+  else if (auto v = boost::any_cast<unsigned int>(&value))
+    std::cout << *v;
+  else if (auto v = boost::any_cast<int>(&value))
+    std::cout << *v;
+  else if (auto v = boost::any_cast<std::string>(&value))
+    std::cout << *v;
+  else if (auto v = boost::any_cast<myVector<double> >(&value))
+    std::cout << *v;
+  else
+    std::cout << "error";
+  std::cout << endl;
+}
+std::cout << endl;
 
     // TODO: Update/dehackify (this has remnants of the OLD WAY).
     const string profile_output_filename = vm[ "output_profile" ].as<string>();
@@ -315,7 +342,7 @@ public:
     const uint32_t lengthadjust_increase_thresholds_for_length_changes_start_iteration = ( vm.count( "dms.increase_thresholds_for_length_changes_start_iteration" ) ? vm[ "dms.increase_thresholds_for_length_changes_start_iteration" ].as<uint32_t>() : 500 );
     const double lengthadjust_increase_thresholds_for_length_changes_min_increment = ( vm.count( "dms.increase_thresholds_for_length_changes_min_increment" ) ? vm[ "dms.increase_thresholds_for_length_changes_min_increment" ].as<double>() : 1E-4 );
 
-    // End processing arguments from the variable map (vm).
+    // End processing arguments from the variable map (vm).  The rest we copy into the parameters.
   
     const uint32_t initial_profile_length = profile.length();
 
@@ -357,8 +384,9 @@ public:
     // To match ProfuseTest.cpp params, we set them as below:
     // We need this to get the right (default) params for the priorMtoM, etc.
     typedef ProfileTreeRoot<ResidueType, ProbabilityType> ProfileType;
-    typename ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::Parameters training_parameters_template;
-    training_parameters_template.resetToDefaults();
+
+    //TODO: ERE I AM.  DO I HAVE TO RECONCILE TWO ACCESSES (VM AND DIRECT)?
+    cout << training_parameters_template << endl;
 //    {
 //      ProfuseTest<ResidueType, ProbabilityType, ScoreType, MatrixValueType, SequenceResidueType> profuse_test;
 //      training_parameters_template =
