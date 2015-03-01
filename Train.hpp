@@ -103,11 +103,11 @@ public:
     DynamicProgramming<ResidueType, ProbabilityType, ScoreType, MatrixValueType> dp;
   
     Fasta<SequenceResidueType> fasta;
-    const std::string fasta_filename = vm[ "fasta" ].as<string>();
+    const std::string fasta_filename = ( training_parameters_template.m_galosh_options_map )[ "fasta" ].template as<string>();
     fasta.fromFile( fasta_filename );
     uint32_t num_sequences_to_use = fasta.size();
-    if( vm.count( "nseq" ) ) {
-      num_sequences_to_use = vm[ "nseq" ].as<uint32_t>();
+    if( ( training_parameters_template.m_galosh_options_map ).count( "nseq" ) ) {
+      num_sequences_to_use = ( training_parameters_template.m_galosh_options_map )[ "nseq" ].as<uint32_t>();
       cout << "Using first " << num_sequences_to_use << " sequences." << endl;
     }
   
@@ -115,17 +115,17 @@ public:
     //cout << fasta << endl;
 
     ProfileType profile;
-    if( vm.count( "starting_profile" ) > 0 ) {
-      const std::string profile_filename = vm[ "starting_profile" ].as<string>();
+    if( ( training_parameters_template.m_galosh_options_map ).count( "starting_profile" ) > 0 ) {
+      const std::string profile_filename = ( training_parameters_template.m_galosh_options_map )[ "starting_profile" ].as<string>();
       profile.fromFile( profile_filename );
       assert( profile.length() > 1 );
     } else {
       // initial profile length defaults to 1, meaning use the maximum length of the input sequences.
       uint32_t initial_profile_length =
-        ( ( vm.count( "initial_profile_length" ) == 0 ) ? 1 : vm[ "initial_profile_length" ].as<uint32_t>() );
+        ( ( ( training_parameters_template.m_galosh_options_map ).count( "initial_profile_length" ) == 0 ) ? 1 : ( training_parameters_template.m_galosh_options_map )[ "initial_profile_length" ].as<uint32_t>() );
 
       uint32_t random_seed_arg =
-        ( ( vm.count( "random_seed" ) == 0 ) ? 0 : vm[ "random_seed" ].as<uint32_t>() );
+        ( ( ( training_parameters_template.m_galosh_options_map ).count( "random_seed" ) == 0 ) ? 0 : ( training_parameters_template.m_galosh_options_map )[ "random_seed" ].as<uint32_t>() );
 
       Random random = Random();
       unsigned long seed = random_seed_arg;
@@ -284,9 +284,7 @@ public:
     typedef ProfileTreeRoot<ResidueType, ProbabilityType> ProfileType;
     typedef ProfileTreeRoot<ResidueType, ProbabilityType> InternalNodeType;
 
-    boost::program_options::variables_map const & vm = training_parameters_template.m_galosh_options_map;
-
-    for (const auto& it : vm ) {
+    for (const auto& it : ( training_parameters_template.m_galosh_options_map ) ) {
   std::cout << it.first.c_str() << " = ";
   auto& value = it.second.value();
   if (auto v = boost::any_cast<bool>(&value))
@@ -310,39 +308,39 @@ public:
 std::cout << endl;
 
     // TODO: Update/dehackify (this has remnants of the OLD WAY).
-    const string profile_output_filename = vm[ "output_profile" ].as<string>();
+    const string profile_output_filename = ( training_parameters_template.m_galosh_options_map )[ "output_profile" ].as<string>();
     string const * const profile_output_filename_ptr = &profile_output_filename;
 
-    const bool use_unconditional_training = vm.count( "unconditional" ) > 0;
+    const bool use_unconditional_training = ( training_parameters_template.m_galosh_options_map ).count( "unconditional" ) > 0;
 
     // If < 0, even() the positions of the starting profile; if > 0, starting profile's positions are averaged with this multiple of the even profile.  Note that it defaults to -1 unless reading from a starting profile file, ie to use even().  If reading from a starting profile, it defaults to 0 (do nothing).
-    const double even_starting_profile_multiple = ( ( vm.count( "even_starting_profile_multiple" ) == 0 ) ? ( vm.count( "starting_profile" ) ? 0 : -1 ) : vm[ "even_starting_profile_multiple" ].as<double>() );
+    const double even_starting_profile_multiple = ( ( ( training_parameters_template.m_galosh_options_map ).count( "even_starting_profile_multiple" ) == 0 ) ? ( ( training_parameters_template.m_galosh_options_map ).count( "starting_profile" ) ? 0 : -1 ) : ( training_parameters_template.m_galosh_options_map )[ "even_starting_profile_multiple" ].as<double>() );
 
-    const bool train_globals_first = vm.count( "globals_first" ) > 0;
+    const bool train_globals_first = ( training_parameters_template.m_galosh_options_map ).count( "globals_first" ) > 0;
 
-    const uint32_t max_iterations = ( vm.count( "max_iterations" ) ? vm[ "max_iterations" ].as<uint32_t>() : 1000 );
+    const uint32_t max_iterations = ( ( training_parameters_template.m_galosh_options_map ).count( "max_iterations" ) ? ( training_parameters_template.m_galosh_options_map )[ "max_iterations" ].as<uint32_t>() : 1000 );
 
     // Note that when using baldiSiegel, the emissions prior is not used.
-    const double emissions_prior_strength = ( vm.count( "emissions_prior_strength" ) ? vm[ "max_iterations" ].as<double>() : 1 );
-    const double transitions_prior_strength = ( vm.count( "transitions_prior_strength" ) ? vm[ "max_iterations" ].as<double>() : 1 );
+    const double emissions_prior_strength = ( ( training_parameters_template.m_galosh_options_map ).count( "emissions_prior_strength" ) ? ( training_parameters_template.m_galosh_options_map )[ "max_iterations" ].as<double>() : 1 );
+    const double transitions_prior_strength = ( ( training_parameters_template.m_galosh_options_map ).count( "transitions_prior_strength" ) ? ( training_parameters_template.m_galosh_options_map )[ "max_iterations" ].as<double>() : 1 );
 
     // 0 means don't use lengthadjust.
-    const bool use_lengthadjust = ( vm.count( "dms" ) > 0 );
+    const bool use_lengthadjust = ( ( training_parameters_template.m_galosh_options_map ).count( "dms" ) > 0 );
 
     // TODO: Dehackify magic #s (defaults)
-    const double lengthadjust_insertion_threshold = ( vm.count( "dms.insertion_threshold" ) ? vm[ "dms.insertion_threshold" ].as<double>() : .5 ); 
-    const double lengthadjust_deletion_threshold = ( vm.count( "dms.deletion_threshold" ) ? vm[ "dms.deletion_threshold" ].as<double>() : lengthadjust_insertion_threshold ); 
-    const double lengthadjust_insertion_threshold_increment = ( vm.count( "dms.insertion_threshold_increment" ) ? vm[ "dms.insertion_threshold_increment" ].as<double>() : 0.0005 ); 
-    const double lengthadjust_deletion_threshold_increment = ( vm.count( "dms.deletion.thrshold" ) ? vm[ "dms.deletion_threshold_increment" ].as<double>() : lengthadjust_insertion_threshold_increment ); 
+    const double lengthadjust_insertion_threshold = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.insertion_threshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.insertion_threshold" ].as<double>() : .5 ); 
+    const double lengthadjust_deletion_threshold = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.deletion_threshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.deletion_threshold" ].as<double>() : lengthadjust_insertion_threshold ); 
+    const double lengthadjust_insertion_threshold_increment = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.insertion_threshold_increment" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.insertion_threshold_increment" ].as<double>() : 0.0005 ); 
+    const double lengthadjust_deletion_threshold_increment = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.deletion.thrshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.deletion_threshold_increment" ].as<double>() : lengthadjust_insertion_threshold_increment ); 
 
-    const double lengthadjust_occupancy_threshold = ( vm.count( "dms.occupancy_threshold" ) ? vm[ "dms.occupancy_threshold" ].as<double>() : .5 );
+    const double lengthadjust_occupancy_threshold = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.occupancy_threshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.occupancy_threshold" ].as<double>() : .5 );
     // For now always use sensitive thresholding.
     const bool lengthadjust_use_sensitive_thresholding = true;//( lengthadjust_occupancy_threshold > 0 );
 
-    const uint32_t lengthadjust_increase_thresholds_for_length_changes_start_iteration = ( vm.count( "dms.increase_thresholds_for_length_changes_start_iteration" ) ? vm[ "dms.increase_thresholds_for_length_changes_start_iteration" ].as<uint32_t>() : 500 );
-    const double lengthadjust_increase_thresholds_for_length_changes_min_increment = ( vm.count( "dms.increase_thresholds_for_length_changes_min_increment" ) ? vm[ "dms.increase_thresholds_for_length_changes_min_increment" ].as<double>() : 1E-4 );
+    const uint32_t lengthadjust_increase_thresholds_for_length_changes_start_iteration = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.increase_thresholds_for_length_changes_start_iteration" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.increase_thresholds_for_length_changes_start_iteration" ].as<uint32_t>() : 500 );
+    const double lengthadjust_increase_thresholds_for_length_changes_min_increment = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.increase_thresholds_for_length_changes_min_increment" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.increase_thresholds_for_length_changes_min_increment" ].as<double>() : 1E-4 );
 
-    // End processing arguments from the variable map (vm).  The rest we copy into the parameters.
+    // End processing arguments from the variable map (( training_parameters_template.m_galosh_options_map )).  The rest we copy into the parameters.
   
     const uint32_t initial_profile_length = profile.length();
 
@@ -385,7 +383,8 @@ std::cout << endl;
     // We need this to get the right (default) params for the priorMtoM, etc.
     typedef ProfileTreeRoot<ResidueType, ProbabilityType> ProfileType;
 
-    //TODO: ERE I AM.  DO I HAVE TO RECONCILE TWO ACCESSES (VM AND DIRECT)?
+    //TODO: ERE I AM.  DO I HAVE TO RECONCILE TWO ACCESSES (( TRAINING_PARAMETERS_TEMPLATE.M_GALOSH_OPTIONS_MAP ) AND DIRECT)?
+    // TODO: REMOVE
     cout << training_parameters_template << endl;
 //    {
 //      ProfuseTest<ResidueType, ProbabilityType, ScoreType, MatrixValueType, SequenceResidueType> profuse_test;
