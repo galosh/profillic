@@ -106,6 +106,7 @@ public:
     uint32_t num_sequences_to_use = fasta.size();
     if( vm.count( "nseq" ) ) {
       num_sequences_to_use = vm[ "nseq" ].as<uint32_t>();
+      cout << "Using first " << num_sequences_to_use << " sequences." << endl;
     }
   
     //cout << "FASTA from file:" << endl;
@@ -355,7 +356,9 @@ public:
   
     // To match ProfuseTest.cpp params, we set them as below:
     // We need this to get the right (default) params for the priorMtoM, etc.
+    typedef ProfileTreeRoot<ResidueType, ProbabilityType> ProfileType;
     typename ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::Parameters training_parameters_template;
+    training_parameters_template.resetToDefaults();
 //    {
 //      ProfuseTest<ResidueType, ProbabilityType, ScoreType, MatrixValueType, SequenceResidueType> profuse_test;
 //      training_parameters_template =

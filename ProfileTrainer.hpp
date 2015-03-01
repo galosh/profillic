@@ -200,19 +200,19 @@ template <class ProfileType,
       virtual void
       resetToDefaults ();
 
-      template<class CharT, class Traits>
       friend std::ostream&
       operator<< (
         std::ostream& os,
         Parameters const& parameters
       )
       {
+        //TODO: REMOVE
+        cout << "in ProfileTrainer::Parameters operator<<" << endl;
         parameters.writeParameters( os );
 
         return os;
       } // friend operator<< ( basic_ostream &, Parameters const& )
 
-      template<class CharT, class Traits>
       void
       writeParameters (
         std::ostream& os
@@ -283,19 +283,17 @@ template <class ProfileType,
       void
       isModified_reset ();
 
-      template<class CharT, class Traits>
       friend std::ostream&
       operator<< (
         std::ostream& os,
         ParametersModifierTemplate const& parameters_modifier
       )
       {
-        parameters_modifier.writeParametersModifier( os );
+        parameters_modifier.writeParameters( os );
 
         return os;
-      } // friend operator<< ( ostream &, ParametersModifierTemplate const& )
+      } // friend operator<< ( basic_ostream &, ParametersModifierTemplate const& )
 
-      template<class CharT, class Traits>
       void
       writeParametersModifier (
         std::ostream& os
@@ -962,7 +960,6 @@ template <class ProfileType,
             class MatrixValueType,
             class SequenceResidueType,
             class InternalNodeType>
-      template<class CharT, class Traits>
   GALOSH_INLINE_OSTREAM
   void
   ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::Parameters::
@@ -970,6 +967,8 @@ template <class ProfileType,
         std::ostream& os
       ) const
       { // TAH 9/13 How far to qualify?
+        //TODO: REMOVE
+        cout << "in ProfileTrainer::writeParameters" << endl;
         ProlificParameters<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::Parameters::writeParameters( os );
         os << endl;
 
@@ -1110,7 +1109,6 @@ template <class ProfileType,
             class SequenceResidueType,
             class InternalNodeType>
   template <class ParametersType>
-  template<class CharT, class Traits>
   GALOSH_INLINE_OSTREAM
   void
   ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::ParametersModifierTemplate<ParametersType>::

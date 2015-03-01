@@ -83,7 +83,7 @@ main ( int const argc, char ** argv )
       ( "config,c", po::value<string>( &config_file )->default_value( "profillic.cfg" ),
         "name of a file of a configuration." )
       ;
-    
+
     // Declare a group of options that will be 
     // allowed both on command line and in
     // config file
@@ -151,11 +151,15 @@ main ( int const argc, char ** argv )
         "When increasing DMS thresholds for length changes, apply at least this minimum increment per iteration" )
       ;
 
+    typedef ProfileTreeRoot<ResidueType, ProbabilityType> ProfileType;
+    typedef ProfileTreeRoot<ResidueType, ProbabilityType> InternalNodeType;
+    ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::Parameters params;
+    
     po::options_description cmdline_options;
     cmdline_options.add( generic ).add( config ).add( lengthadjust_opts );
 
     po::options_description config_file_options;
-    config_file_options.add( config ).add( lengthadjust_opts );
+    config_file_options.add( params.m_galosh_options_description ).add( config ).add( lengthadjust_opts );
 
     po::options_description visible( "Basic options" );
     visible.add( generic ).add( config );
@@ -164,10 +168,12 @@ main ( int const argc, char ** argv )
     p.add( "output_profile", 1 );
     p.add( "fasta", 1 );
         
-    po::variables_map vm;
+    store( po::command_line_parser( argc, argv ).options( cmdline_options ).positional( p ).run(), params.m_galosh_options_map );
+    notify( params.m_galosh_options_map );
 
-    store( po::command_line_parser( argc, argv ).options( cmdline_options ).positional( p ).run(), vm );
-    notify( vm );
+    // TODO: REMOVE
+    cout << params << endl;
+    cout << endl;
 
 #define USAGE() " " << argv[ 0 ] << " [options] <output profile file> <fasta sequences file>"
 
@@ -184,52 +190,52 @@ main ( int const argc, char ** argv )
     if( config_file.length() > 0 ) {
       ifstream ifs( config_file.c_str() );
       if( !ifs ) {
-        if(!vm["config"].defaulted()) {         //TAH 3/13 don't choke if config file was defaulted and is missing
+        if(!params.m_galosh_options_map["config"].defaulted()) {         //TAH 3/13 don't choke if config file was defaulted and is missing
            cout << "Can't open the config file named \"" << config_file << "\"\n";
            return 0;
         } 
       } else {
-        store( parse_config_file( ifs, config_file_options ), vm );
-        notify( vm );
+        store( parse_config_file( ifs, config_file_options ), params.m_galosh_options_map );
+        notify( params.m_galosh_options_map );
       }
     }
 
-    if( vm.count( "help" ) > 0 ) {
+    if( params.m_galosh_options_map.count( "help" ) > 0 ) {
       cout << "Usage: " << USAGE() << endl;
       cout << visible << "\n";
       return 0;
     }
 
-    if( vm.count( "version" ) ) {
+    if( params.m_galosh_options_map.count( "version" ) ) {
       cout << "Profillic, version 1.0\n";
       return 0;
     }
 
-    if( vm.count( "debug" ) ) {
+    if( params.m_galosh_options_map.count( "debug" ) ) {
       cout << "[DEBUGGING]\n";
       return 0;
     }
 
     // Required options
-    if( ( vm.count( "output_profile" ) == 0 ) || ( vm.count( "fasta" ) == 0 ) ) {
+    if( ( params.m_galosh_options_map.count( "output_profile" ) == 0 ) || ( params.m_galosh_options_map.count( "fasta" ) == 0 ) ) {
       cout << "Usage: " << USAGE() << endl;
       return 1;
     }
     
-    //if( vm.count( "include-path" ) ) {
+    //if( params.m_galosh_options_map.count( "include-path" ) ) {
     //  cout << "Include paths are: " 
-    //       << vm["include-path"].as< vector<string> >() << "\n";
+    //       << params.m_galosh_options_map["include-path"].as< vector<string> >() << "\n";
     //}
     //
-    //    if (vm.count("input-file"))
+    //    if (params.m_galosh_options_map.count("input-file"))
     //    {
     //        cout << "Input files are: " 
-    //             << vm["input-file"].as< vector<string> >() << "\n";
+    //             << params.m_galosh_options_map["input-file"].as< vector<string> >() << "\n";
     //    }
 
     // TODO: ERE I AM
     Train<ProbabilityType, ScoreType, MatrixValueType, ResidueType, SequenceResidueType> train;
-    train.train( vm );
+    train.train( params.m_galosh_options_map );
 
     return 0;
   } catch( std::exception& e ) { /// exceptions thrown by boost stuff (etc)
@@ -432,7 +438,7 @@ main ( int const argc, char ** argv )
   }
   
   Train<ProbabilityType, ScoreType, MatrixValueType, ResidueType, SequenceResidueType> train;
-  //train.train( vm );
+  //train.train( params.m_galosh_options_map );
 //
 //  if( profile_filename.length() == 0 ) {
 //    // TODO: REMOVE
