@@ -107,25 +107,28 @@ public:
     fasta.fromFile( fasta_filename );
     uint32_t num_sequences_to_use = fasta.size();
     if( ( training_parameters_template.m_galosh_options_map ).count( "nseq" ) ) {
-      num_sequences_to_use = ( training_parameters_template.m_galosh_options_map )[ "nseq" ].as<uint32_t>();
+      num_sequences_to_use = ( training_parameters_template.m_galosh_options_map )[ "nseq" ].template as<uint32_t>();
       cout << "Using first " << num_sequences_to_use << " sequences." << endl;
+    } else {
+      num_sequences_to_use = fasta.size();
+      cout << "Using all " << num_sequences_to_use << " sequences." << endl;
     }
-  
+
     //cout << "FASTA from file:" << endl;
     //cout << fasta << endl;
 
     ProfileType profile;
     if( ( training_parameters_template.m_galosh_options_map ).count( "starting_profile" ) > 0 ) {
-      const std::string profile_filename = ( training_parameters_template.m_galosh_options_map )[ "starting_profile" ].as<string>();
+      const std::string profile_filename = ( training_parameters_template.m_galosh_options_map )[ "starting_profile" ].template as<string>();
       profile.fromFile( profile_filename );
       assert( profile.length() > 1 );
     } else {
       // initial profile length defaults to 1, meaning use the maximum length of the input sequences.
       uint32_t initial_profile_length =
-        ( ( ( training_parameters_template.m_galosh_options_map ).count( "initial_profile_length" ) == 0 ) ? 1 : ( training_parameters_template.m_galosh_options_map )[ "initial_profile_length" ].as<uint32_t>() );
+        ( ( ( training_parameters_template.m_galosh_options_map ).count( "initial_profile_length" ) == 0 ) ? 1 : ( training_parameters_template.m_galosh_options_map )[ "initial_profile_length" ].template as<uint32_t>() );
 
       uint32_t random_seed_arg =
-        ( ( ( training_parameters_template.m_galosh_options_map ).count( "random_seed" ) == 0 ) ? 0 : ( training_parameters_template.m_galosh_options_map )[ "random_seed" ].as<uint32_t>() );
+        ( ( ( training_parameters_template.m_galosh_options_map ).count( "random_seed" ) == 0 ) ? 0 : ( training_parameters_template.m_galosh_options_map )[ "random_seed" ].template as<uint32_t>() );
 
       Random random = Random();
       unsigned long seed = random_seed_arg;
@@ -266,7 +269,8 @@ public:
       train(
         training_parameters_template,
         fasta,
-        profile
+        profile,
+        num_sequences_to_use
       );
   } // train( Parameters const & )
 
@@ -278,7 +282,8 @@ public:
   train (
     typename ProfileTrainer<ProfileTreeRoot<ResidueType, ProbabilityType>, ScoreType, MatrixValueType, SequenceResidueType, ProfileTreeRoot<ResidueType, ProbabilityType> >::Parameters & training_parameters_template,
     Fasta<SequenceResidueType> const & fasta,
-    ProfileTreeRoot<ResidueType, ProbabilityType> & profile
+    ProfileTreeRoot<ResidueType, ProbabilityType> & profile,
+    uint32_t const & num_sequences_to_use
   ) const
   {
     typedef ProfileTreeRoot<ResidueType, ProbabilityType> ProfileType;
@@ -308,37 +313,37 @@ public:
 std::cout << endl;
 
     // TODO: Update/dehackify (this has remnants of the OLD WAY).
-    const string profile_output_filename = ( training_parameters_template.m_galosh_options_map )[ "output_profile" ].as<string>();
+    const string profile_output_filename = ( training_parameters_template.m_galosh_options_map )[ "output_profile" ].template as<string>();
     string const * const profile_output_filename_ptr = &profile_output_filename;
 
     const bool use_unconditional_training = ( training_parameters_template.m_galosh_options_map ).count( "unconditional" ) > 0;
 
     // If < 0, even() the positions of the starting profile; if > 0, starting profile's positions are averaged with this multiple of the even profile.  Note that it defaults to -1 unless reading from a starting profile file, ie to use even().  If reading from a starting profile, it defaults to 0 (do nothing).
-    const double even_starting_profile_multiple = ( ( ( training_parameters_template.m_galosh_options_map ).count( "even_starting_profile_multiple" ) == 0 ) ? ( ( training_parameters_template.m_galosh_options_map ).count( "starting_profile" ) ? 0 : -1 ) : ( training_parameters_template.m_galosh_options_map )[ "even_starting_profile_multiple" ].as<double>() );
+    const double even_starting_profile_multiple = ( ( ( training_parameters_template.m_galosh_options_map ).count( "even_starting_profile_multiple" ) == 0 ) ? ( ( training_parameters_template.m_galosh_options_map ).count( "starting_profile" ) ? 0 : -1 ) : ( training_parameters_template.m_galosh_options_map )[ "even_starting_profile_multiple" ].template as<double>() );
 
     const bool train_globals_first = ( training_parameters_template.m_galosh_options_map ).count( "globals_first" ) > 0;
 
-    const uint32_t max_iterations = ( ( training_parameters_template.m_galosh_options_map ).count( "max_iterations" ) ? ( training_parameters_template.m_galosh_options_map )[ "max_iterations" ].as<uint32_t>() : 1000 );
+    const uint32_t max_iterations = ( ( training_parameters_template.m_galosh_options_map ).count( "max_iterations" ) ? ( training_parameters_template.m_galosh_options_map )[ "max_iterations" ].template as<uint32_t>() : 1000 );
 
     // Note that when using baldiSiegel, the emissions prior is not used.
-    const double emissions_prior_strength = ( ( training_parameters_template.m_galosh_options_map ).count( "emissions_prior_strength" ) ? ( training_parameters_template.m_galosh_options_map )[ "max_iterations" ].as<double>() : 1 );
-    const double transitions_prior_strength = ( ( training_parameters_template.m_galosh_options_map ).count( "transitions_prior_strength" ) ? ( training_parameters_template.m_galosh_options_map )[ "max_iterations" ].as<double>() : 1 );
+    const double emissions_prior_strength = ( ( training_parameters_template.m_galosh_options_map ).count( "emissions_prior_strength" ) ? ( training_parameters_template.m_galosh_options_map )[ "max_iterations" ].template as<double>() : 1 );
+    const double transitions_prior_strength = ( ( training_parameters_template.m_galosh_options_map ).count( "transitions_prior_strength" ) ? ( training_parameters_template.m_galosh_options_map )[ "max_iterations" ].template as<double>() : 1 );
 
     // 0 means don't use lengthadjust.
     const bool use_lengthadjust = ( ( training_parameters_template.m_galosh_options_map ).count( "dms" ) > 0 );
 
     // TODO: Dehackify magic #s (defaults)
-    const double lengthadjust_insertion_threshold = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.insertion_threshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.insertion_threshold" ].as<double>() : .5 ); 
-    const double lengthadjust_deletion_threshold = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.deletion_threshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.deletion_threshold" ].as<double>() : lengthadjust_insertion_threshold ); 
-    const double lengthadjust_insertion_threshold_increment = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.insertion_threshold_increment" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.insertion_threshold_increment" ].as<double>() : 0.0005 ); 
-    const double lengthadjust_deletion_threshold_increment = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.deletion.thrshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.deletion_threshold_increment" ].as<double>() : lengthadjust_insertion_threshold_increment ); 
+    const double lengthadjust_insertion_threshold = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.insertion_threshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.insertion_threshold" ].template as<double>() : .5 ); 
+    const double lengthadjust_deletion_threshold = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.deletion_threshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.deletion_threshold" ].template as<double>() : lengthadjust_insertion_threshold ); 
+    const double lengthadjust_insertion_threshold_increment = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.insertion_threshold_increment" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.insertion_threshold_increment" ].template as<double>() : 0.0005 ); 
+    const double lengthadjust_deletion_threshold_increment = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.deletion.thrshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.deletion_threshold_increment" ].template as<double>() : lengthadjust_insertion_threshold_increment ); 
 
-    const double lengthadjust_occupancy_threshold = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.occupancy_threshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.occupancy_threshold" ].as<double>() : .5 );
+    const double lengthadjust_occupancy_threshold = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.occupancy_threshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.occupancy_threshold" ].template as<double>() : .5 );
     // For now always use sensitive thresholding.
     const bool lengthadjust_use_sensitive_thresholding = true;//( lengthadjust_occupancy_threshold > 0 );
 
-    const uint32_t lengthadjust_increase_thresholds_for_length_changes_start_iteration = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.increase_thresholds_for_length_changes_start_iteration" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.increase_thresholds_for_length_changes_start_iteration" ].as<uint32_t>() : 500 );
-    const double lengthadjust_increase_thresholds_for_length_changes_min_increment = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.increase_thresholds_for_length_changes_min_increment" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.increase_thresholds_for_length_changes_min_increment" ].as<double>() : 1E-4 );
+    const uint32_t lengthadjust_increase_thresholds_for_length_changes_start_iteration = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.increase_thresholds_for_length_changes_start_iteration" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.increase_thresholds_for_length_changes_start_iteration" ].template as<uint32_t>() : 500 );
+    const double lengthadjust_increase_thresholds_for_length_changes_min_increment = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.increase_thresholds_for_length_changes_min_increment" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.increase_thresholds_for_length_changes_min_increment" ].template as<double>() : 1E-4 );
 
     // End processing arguments from the variable map (( training_parameters_template.m_galosh_options_map )).  The rest we copy into the parameters.
   
@@ -376,7 +381,6 @@ std::cout << endl;
       profile.normalize( 1E-5 );
     } // End if even_starting_profile_multiple
 
-    uint32_t num_sequences_to_use = fasta.size();
     ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType> trainer( &profile, fasta, num_sequences_to_use );
   
     // To match ProfuseTest.cpp params, we set them as below:
