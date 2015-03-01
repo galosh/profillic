@@ -58,7 +58,11 @@ GALOSH_DEF_OPT(maxIterations,uint32_t,1000,"How many times at maximum should we 
        * How many times should we cycle through the training steps before,
        * despite continuing improvement, we move on to refining indels?
        */
+#ifdef ALLOW_BOLTZMANN_GIBBS
+GALOSH_DEF_OPT(maxPositionCycles,uint32_t,10,"How many times should we cycle through the training steps before, despite continuing improvement, we move on to the next iteration?" );
+#else
 GALOSH_DEF_OPT(maxPositionCycles,uint32_t,1,"How many times should we cycle through the training steps before, despite continuing improvement, we move on to the next iteration?" );
+#endif
 
       /**
        * How many times should we cycle through the training steps before,
@@ -74,7 +78,7 @@ GALOSH_DEF_OPT(maxPositionCycles_sequence_identifiers,uint32_t,4,"How many times
        *
        * This is for the global params training step.
        */
-GALOSH_DEF_OPT(maxPositionCycles_globals,uint32_t,4,"How many times should we cycle through the training steps before, despite continuing improvement, we move on the next iteration? This is for the global params training step." );
+GALOSH_DEF_OPT(maxPositionCycles_globals,uint32_t,1,"How many times should we cycle through the training steps before, despite continuing improvement, we move on the next iteration? This is for the global params training step." );
 
       /**
        * Set this to 0 for straight-up BW/CBW.  Non-zero values allow
@@ -197,7 +201,7 @@ GALOSH_DEF_OPT(euclideanDistanceMinimum_position_cycle,float,1E-5F,"What average
        *
        * See alwaysAccept_disallowThreshold_profileDistance_iteration.
        */
-GALOSH_DEF_OPT(alwaysAccept,bool,true,"Always accept the changes to the profile, even if the score goes down? Theoretically, the BW update should always lead to an improvement, but because of numerical instability (or strong priors), sometimes it won't.  Note that we recommend that you set alwaysAccept to false if usePriors=true and you are using lengthadjust." );
+GALOSH_DEF_OPT(alwaysAccept,bool,false,"Always accept the changes to the profile, even if the score goes down? Theoretically, the BW update should always lead to an improvement, but because of numerical instability (or strong priors), sometimes it won't.  Note that we recommend that you set alwaysAccept to false if usePriors=true and you are using lengthadjust." );
 
       /**
        * Calculate and use Alignment Profiles for the positions BW update?  If
@@ -393,7 +397,11 @@ GALOSH_DEF_OPT(useUnconditionalBaumWelch,bool,false,"Use the usual kind of Baum-
        *
        * @see baldiTemperature
        */
+#ifdef ALLOW_BOLTZMANN_GIBBS
+GALOSH_DEF_OPT(baldiLearningRate,double,1.0,"Use Baldi's style of gradient ascent (GEM vs EM)?  If so, with what learning rate?");
+#else
 GALOSH_DEF_OPT(baldiLearningRate,double,0.0,"Use Baldi's style of gradient ascent (GEM vs EM)?  If so, with what learning rate?");
+#endif
 
       /**
        * If we are using Baldi's style of gradient ascent (GEM vs EM), use this
@@ -419,7 +427,7 @@ GALOSH_DEF_OPT(usePriors,bool,true,"Use priors?  If true, m_matchEmissionPrior a
        * quit trying to find a peak after this many attempts.  Note this only applies 
        * when baldiLearningRate > 0 and when ALLOW_BOLTZMANN_GIBBS is #defined.
        */
-GALOSH_DEF_OPT(siegelMaxFindingThePeakAttempts_positions,uint32_t,1000,"Set this to 0 for straight-up Baldi.  If non-zero, use Baldi / Siegel and quit trying to find a peak after this many attempts");
+GALOSH_DEF_OPT(siegelMaxFindingThePeakAttempts_positions,uint32_t,10000,"Set this to 0 for straight-up Baldi.  If non-zero, use Baldi / Siegel and quit trying to find a peak after this many attempts");
 
       /**
        * Set to true to try both BW / CBW *and* Baldi/Siegel, then take whichever move is best.
@@ -431,7 +439,7 @@ GALOSH_DEF_OPT(baldiHybrid,bool,false,"Set to true to try both BW / CBW *and* Ba
        * from the Baldi paper to explore trapping a peak).  Note steps down will use the inverse of this.  
        * This must be strictly > 1.
        */
-GALOSH_DEF_OPT(siegelEpsilonScaleFactor,double,2.0,"Length of steps for Baldi / Siegel (this is multiplied into the learning rate from eqn 3 from the Baldi paper to explore trapping a peak).  Note steps down will use the inverse of this.  This must be strictly > 1.");
+GALOSH_DEF_OPT(siegelEpsilonScaleFactor,double,1.5,"Length of steps for Baldi / Siegel (this is multiplied into the learning rate from eqn 3 from the Baldi paper to explore trapping a peak).  Note steps down will use the inverse of this.  This must be strictly > 1.");
 
       /**
        * If doing Unconditional BW or Unconditional Baldi, should we still isolate updates to the

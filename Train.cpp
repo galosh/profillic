@@ -110,16 +110,16 @@ main ( int const argc, char ** argv )
       ( "nseq,n",
         po::value<uint32_t>(),
         "number of sequences to use (default is ALL)" )
-      ( "dms,d", "use the Dynamic Model Surgery (DMS) algorithm to prune unused model states and introduce states for oft-used insertions" )
-      ( "unconditional,u", "use the unconditional variant of the algorithm to simultaneously update all positions in each iteration" )
-      ( "globals_first,g", "train the globals before the first positions-training step" )
-      ( "max_iterations,i",
+      ( "proposeProfileLengthChanges,use_lengthadjust,dms,d", "use the Dynamic Model Surgery (DMS) algorithm to prune unused model states and introduce states for oft-used insertions" )
+      ( "useUnconditionalBaumWelch,unconditional,u", "use the unconditional variant of the algorithm to simultaneously update all positions in each iteration" )
+      ( "trainGlobalsFirst,globals_first,g", "train the globals before the first positions-training step" )
+      ( "maxIterations,max_iterations,i",
         po::value<uint32_t>(),
         "maximum number of iterations to use in training the profile (default 1000)" )
-      ( "emisions_prior_strength",
+      ( "priorStrength,emisions_prior_strength",
         po::value<double>(),
         "strength of priors for emissions parameters (not used for Quadratic Ascent training)" )
-      ( "transitions_prior_strength",
+      ( "priorStrength_internal_transitions,transitions_prior_strength",
         po::value<double>(),
         "strength of priors for transitions parameters" )
       ;
@@ -128,25 +128,25 @@ main ( int const argc, char ** argv )
     // in config file, but will not be shown to the user.
     po::options_description lengthadjust_opts( "Lengthadjust options" );
     lengthadjust_opts.add_options()
-      ( "dms.occupancy_threshold",
+      ( "proposeInsertingOccupancyThreshold,dms.occupancy_threshold",
         po::value<double>(),
         "DMS threshold for fraction of sequences inserting/deleting to trigger a model edit of a given position" )
-      ( "dms.insertion_threshold",
+      ( "proposeInsertingThreshold,dms.insertion_threshold",
         po::value<double>(),
         "DMS per-sequence threshold on insertion-open to count that sequence as inserting at a given position" )
-      ( "dms.deletion_threshold",
+      ( "proposeDeletingThreshold,dms.deletion_threshold",
         po::value<double>(),
         "DMS per-sequence threshold on the probability of deletion at a position to count that sequence as deleting the position" )
-      ( "dms.insertion_threshold_increment",
+      ( "proposeInsertingThreshold_increment,dms.insertion_threshold_increment",
         po::value<double>(),
         "DMS insertion threshold increment" )
-      ( "dms.deletion_threshold_increment",
+      ( "proposeDeletingThreshold_increment,dms.deletion_threshold_increment",
         po::value<double>(),
         "DMS deletion threshold increment" )
-      ( "dms.increase_thresholds_for_length_changes_start_iteration",
+      ( "increaseThresholdsForLengthChanges_startIteration,dms.increase_thresholds_for_length_changes_start_iteration",
         po::value<uint32_t>(),
         "Eventually we get impatient and want the DMS process to hurry along; this determines the iteration at which we start increasing thresholds using the threshold increments and the min_increment" )
-      ( "dms.increase_thresholds_for_length_changes_min_increment",
+      ( "increaseThresholdsForLengthChanges_minIncrement,dms.increase_thresholds_for_length_changes_min_increment",
         po::value<double>(),
         "When increasing DMS thresholds for length changes, apply at least this minimum increment per iteration" )
       ;

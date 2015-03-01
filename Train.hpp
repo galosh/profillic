@@ -316,34 +316,30 @@ std::cout << endl;
     const string profile_output_filename = ( training_parameters_template.m_galosh_options_map )[ "output_profile" ].template as<string>();
     string const * const profile_output_filename_ptr = &profile_output_filename;
 
-    const bool use_unconditional_training = ( training_parameters_template.m_galosh_options_map ).count( "unconditional" ) > 0;
+    //const bool use_unconditional_training = ( training_parameters_template.m_galosh_options_map ).count( "unconditional" ) > 0;
 
     // If < 0, even() the positions of the starting profile; if > 0, starting profile's positions are averaged with this multiple of the even profile.  Note that it defaults to -1 unless reading from a starting profile file, ie to use even().  If reading from a starting profile, it defaults to 0 (do nothing).
     const double even_starting_profile_multiple = ( ( ( training_parameters_template.m_galosh_options_map ).count( "even_starting_profile_multiple" ) == 0 ) ? ( ( training_parameters_template.m_galosh_options_map ).count( "starting_profile" ) ? 0 : -1 ) : ( training_parameters_template.m_galosh_options_map )[ "even_starting_profile_multiple" ].template as<double>() );
 
-    const bool train_globals_first = ( training_parameters_template.m_galosh_options_map ).count( "globals_first" ) > 0;
+    //const bool train_globals_first = ( training_parameters_template.m_galosh_options_map ).count( "globals_first" ) > 0;
 
-    const uint32_t max_iterations = ( ( training_parameters_template.m_galosh_options_map ).count( "max_iterations" ) ? ( training_parameters_template.m_galosh_options_map )[ "max_iterations" ].template as<uint32_t>() : 1000 );
-
-    // Note that when using baldiSiegel, the emissions prior is not used.
-    const double emissions_prior_strength = ( ( training_parameters_template.m_galosh_options_map ).count( "emissions_prior_strength" ) ? ( training_parameters_template.m_galosh_options_map )[ "max_iterations" ].template as<double>() : 1 );
-    const double transitions_prior_strength = ( ( training_parameters_template.m_galosh_options_map ).count( "transitions_prior_strength" ) ? ( training_parameters_template.m_galosh_options_map )[ "max_iterations" ].template as<double>() : 1 );
+    //const uint32_t max_iterations = ( ( training_parameters_template.m_galosh_options_map ).count( "max_iterations" ) ? ( training_parameters_template.m_galosh_options_map )[ "max_iterations" ].template as<uint32_t>() : 1000 );
 
     // 0 means don't use lengthadjust.
-    const bool use_lengthadjust = ( ( training_parameters_template.m_galosh_options_map ).count( "dms" ) > 0 );
+    //const bool use_lengthadjust = ( ( training_parameters_template.m_galosh_options_map ).count( "dms" ) > 0 );
 
     // TODO: Dehackify magic #s (defaults)
-    const double lengthadjust_insertion_threshold = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.insertion_threshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.insertion_threshold" ].template as<double>() : .5 ); 
-    const double lengthadjust_deletion_threshold = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.deletion_threshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.deletion_threshold" ].template as<double>() : lengthadjust_insertion_threshold ); 
-    const double lengthadjust_insertion_threshold_increment = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.insertion_threshold_increment" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.insertion_threshold_increment" ].template as<double>() : 0.0005 ); 
-    const double lengthadjust_deletion_threshold_increment = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.deletion.thrshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.deletion_threshold_increment" ].template as<double>() : lengthadjust_insertion_threshold_increment ); 
-
-    const double lengthadjust_occupancy_threshold = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.occupancy_threshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.occupancy_threshold" ].template as<double>() : .5 );
+    //const double lengthadjust_insertion_threshold = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.insertion_threshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.insertion_threshold" ].template as<double>() : .5 ); 
+    //const double lengthadjust_deletion_threshold = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.deletion_threshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.deletion_threshold" ].template as<double>() : lengthadjust_insertion_threshold ); 
+    //const double lengthadjust_insertion_threshold_increment = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.insertion_threshold_increment" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.insertion_threshold_increment" ].template as<double>() : 0.0005 ); 
+    //const double lengthadjust_deletion_threshold_increment = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.deletion.thrshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.deletion_threshold_increment" ].template as<double>() : lengthadjust_insertion_threshold_increment ); 
+    //
+    //const double lengthadjust_occupancy_threshold = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.occupancy_threshold" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.occupancy_threshold" ].template as<double>() : .5 );
     // For now always use sensitive thresholding.
-    const bool lengthadjust_use_sensitive_thresholding = true;//( lengthadjust_occupancy_threshold > 0 );
+    //const bool lengthadjust_use_sensitive_thresholding = true;//( lengthadjust_occupancy_threshold > 0 );
 
-    const uint32_t lengthadjust_increase_thresholds_for_length_changes_start_iteration = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.increase_thresholds_for_length_changes_start_iteration" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.increase_thresholds_for_length_changes_start_iteration" ].template as<uint32_t>() : 500 );
-    const double lengthadjust_increase_thresholds_for_length_changes_min_increment = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.increase_thresholds_for_length_changes_min_increment" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.increase_thresholds_for_length_changes_min_increment" ].template as<double>() : 1E-4 );
+    //const uint32_t lengthadjust_increase_thresholds_for_length_changes_start_iteration = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.increase_thresholds_for_length_changes_start_iteration" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.increase_thresholds_for_length_changes_start_iteration" ].template as<uint32_t>() : 500 );
+    //const double lengthadjust_increase_thresholds_for_length_changes_min_increment = ( ( training_parameters_template.m_galosh_options_map ).count( "dms.increase_thresholds_for_length_changes_min_increment" ) ? ( training_parameters_template.m_galosh_options_map )[ "dms.increase_thresholds_for_length_changes_min_increment" ].template as<double>() : 1E-4 );
 
     // End processing arguments from the variable map (( training_parameters_template.m_galosh_options_map )).  The rest we copy into the parameters.
   
@@ -359,13 +355,13 @@ std::cout << endl;
   
     ScoreType score;
   
-    if( use_lengthadjust ) {
+    if( training_parameters_template.proposeProfileLengthChanges ) {
       cout << "Initial profile length: " << profile.length() << endl;
-      cout << "DMS occupancy threshold: " << lengthadjust_occupancy_threshold << endl;
-      cout << "DMS insertion threshold: " << lengthadjust_insertion_threshold << endl;
-      cout << "DMS deletion threshold: " << lengthadjust_deletion_threshold << endl;
-      cout << "DMS insertion threshold increment: " << lengthadjust_insertion_threshold_increment << endl;
-      cout << "DMS deletion threshold increment: " << lengthadjust_deletion_threshold_increment << endl;
+      cout << "DMS occupancy threshold: " << training_parameters_template.proposeInsertingOccupancyThreshold << endl;
+      cout << "DMS insertion threshold: " << training_parameters_template.proposeInsertingThreshold << endl;
+      cout << "DMS deletion threshold: " << training_parameters_template.proposeDeletingThreshold << endl;
+      cout << "DMS insertion threshold increment: " << training_parameters_template.proposeInsertingThreshold_increment << endl;
+      cout << "DMS deletion threshold increment: " << training_parameters_template.proposeDeletingThreshold_increment << endl;
     } else {
       cout << "Profile length: " << profile.length() << endl;
     }
@@ -398,28 +394,28 @@ std::cout << endl;
         
     // TODO: REMOVE!  Testing..  (This is a good setting for the small numbers of observed sequences in eg the STEP trial when training from the starting profile (pretrained from eg all lanl seqs).  Use the known globals -- this avoids converging to silly all-indel profiles, and also acknowledges that the small data set shouldn't overwhelm what we already know about gaps (but TODO: allow using starting profile as a prior, with adjustable prior strength).  Disallowing priors here is key to see the effects of the data, but of course weakening the prior would also be a possibility, and disabling it can encourage local optima.  Again, starting with the 'known' profile seems key.
     //training_parameters_template.trainProfileGlobals = false; // TODO: REMOVE.
-    training_parameters_template.usePriors = false;//true;
+    //training_parameters_template.usePriors = false;//true;
 
     // TODO: Try with the lengthadjust: maxBaumWelchInverseScalar > 0
-    training_parameters_template.minIterations = 1; // But see below...
-    training_parameters_template.maxIterations = max_iterations;
-    // Having maxPositionCycles_globals > 1 seems ok; takes about the same
-    // number of iterations, converges to roughly the same place; takes
-    // longer by virtue of having more pos cycles per iteration of course.
-    training_parameters_template.maxPositionCycles = 1;
-    // Having maxPositionCycles_globals > 1 seems to make convergence way
-    // slower when lengthadjust is on.  Length keeps adjusting..
-    training_parameters_template.maxPositionCycles_globals = 1;
-    training_parameters_template.minBaumWelchInverseScalar = 0; // Straight-up bw.
-    training_parameters_template.maxBaumWelchInverseScalar = 0; // Straight-up bw.
-    training_parameters_template.minBaumWelchInverseScalar_globals = 0; // Straight-up bw.
-    training_parameters_template.maxBaumWelchInverseScalar_globals = 0; // Straight-up bw.
-    training_parameters_template.scorePercentChangeMinimum_position_cycle = 1;
-    training_parameters_template.scorePercentChangeMinimum_iteration = .01;
-    training_parameters_template.euclideanDistanceMinimum_position_cycle = 1E-5;
-    training_parameters_template.euclideanDistanceMinimum_iteration = 1E-5;
-    training_parameters_template.alwaysAccept = false;//true;//( use_lengthadjust ? true : false );
-    training_parameters_template.alwaysAccept_disallowThreshold_profileDistance_iteration = 1E-5;
+    //training_parameters_template.minIterations = 1; // But see below...
+    //training_parameters_template.maxIterations = max_iterations;
+    //// Having maxPositionCycles_globals > 1 seems ok; takes about the same
+    //// number of iterations, converges to roughly the same place; takes
+    //// longer by virtue of having more pos cycles per iteration of course.
+    //training_parameters_template.maxPositionCycles = 1;
+    //// Having maxPositionCycles_globals > 1 seems to make convergence way
+    //// slower when lengthadjust is on.  Length keeps adjusting..
+    //training_parameters_template.maxPositionCycles_globals = 1;
+    //training_parameters_template.minBaumWelchInverseScalar = 0; // Straight-up bw.
+    //training_parameters_template.maxBaumWelchInverseScalar = 0; // Straight-up bw.
+    //training_parameters_template.minBaumWelchInverseScalar_globals = 0; // Straight-up bw.
+    //training_parameters_template.maxBaumWelchInverseScalar_globals = 0; // Straight-up bw.
+    //training_parameters_template.scorePercentChangeMinimum_position_cycle = 1;
+    //training_parameters_template.scorePercentChangeMinimum_iteration = .01;
+    //training_parameters_template.euclideanDistanceMinimum_position_cycle = 1E-5;
+    //training_parameters_template.euclideanDistanceMinimum_iteration = 1E-5;
+    //training_parameters_template.alwaysAccept = false;//true;//( use_lengthadjust ? true : false );
+    //training_parameters_template.alwaysAccept_disallowThreshold_profileDistance_iteration = 1E-5;
 
     // The default is 1E-5...
     //training_parameters_template.euclideanDistanceMinimum_iteration = 5E-7; // 5E-7 is great, though slow...
@@ -427,30 +423,32 @@ std::cout << endl;
     // TODO: REMOVE!  TESTING.
     //training_parameters_template.profileValueMinimum = 0; // REMOVE!
   
-    training_parameters_template.proposeProfileLengthChanges = use_lengthadjust;
-    training_parameters_template.useAlignmentProfiles = true;
-    training_parameters_template.numIterationsBetweenLengthChanges = 0;
-    training_parameters_template.proposeDeletingThreshold =
-      lengthadjust_deletion_threshold; //.01;//.025;//.1;
-    training_parameters_template.proposeDeletingThreshold_increment =
-      lengthadjust_deletion_threshold_increment; //.0005;//.00005;//.0005;//5E-5;//.0003125;//.00625;//.025;
-    training_parameters_template.proposeInsertingThreshold =
-      lengthadjust_insertion_threshold;
-    training_parameters_template.proposeInsertingPreAlignThreshold = //.35; //.5;
-      training_parameters_template.proposeInsertingThreshold;
-    training_parameters_template.proposeInsertingPostAlignThreshold = //.35;//.5;
-      training_parameters_template.proposeInsertingThreshold;
-    training_parameters_template.proposeInsertingThreshold_increment =
-      lengthadjust_insertion_threshold_increment;
+    //training_parameters_template.proposeProfileLengthChanges = use_lengthadjust;
+      double priorStrength_flanking_self_transitions = training_parameters_template.priorStrength_internal_transitions; // 1000
+      double priorStrength_flanking_other_transitions = training_parameters_template.priorStrength_internal_transitions; // 1000
+    //training_parameters_template.useAlignmentProfiles = true;
+    //training_parameters_template.numIterationsBetweenLengthChanges = 0;
+    //training_parameters_template.proposeDeletingThreshold =
+    //  lengthadjust_deletion_threshold; //.01;//.025;//.1;
+    //training_parameters_template.proposeDeletingThreshold_increment =
+    //  lengthadjust_deletion_threshold_increment; //.0005;//.00005;//.0005;//5E-5;//.0003125;//.00625;//.025;
+    //training_parameters_template.proposeInsertingThreshold =
+    //  lengthadjust_insertion_threshold;
+    //training_parameters_template.proposeInsertingPreAlignThreshold = //.35; //.5;
+    //  training_parameters_template.proposeInsertingThreshold;
+    //training_parameters_template.proposeInsertingPostAlignThreshold = //.35;//.5;
+    //  training_parameters_template.proposeInsertingThreshold;
+    //training_parameters_template.proposeInsertingThreshold_increment =
+    //  lengthadjust_insertion_threshold_increment;
 
-    training_parameters_template.proposeInsertingOccupancyThreshold =
-      lengthadjust_occupancy_threshold;
-    training_parameters_template.useSensitiveThresholding =
-      lengthadjust_use_sensitive_thresholding;
-    training_parameters_template.increaseThresholdsForLengthChanges_startIteration =
-      lengthadjust_increase_thresholds_for_length_changes_start_iteration;
-    training_parameters_template.increaseThresholdsForLengthChanges_minIncrement =
-      lengthadjust_increase_thresholds_for_length_changes_min_increment;
+    //training_parameters_template.proposeInsertingOccupancyThreshold =
+    //  lengthadjust_occupancy_threshold;
+    //training_parameters_template.useSensitiveThresholding =
+    //  lengthadjust_use_sensitive_thresholding;
+    //training_parameters_template.increaseThresholdsForLengthChanges_startIteration =
+    //  lengthadjust_increase_thresholds_for_length_changes_start_iteration;
+    //training_parameters_template.increaseThresholdsForLengthChanges_minIncrement =
+    //  lengthadjust_increase_thresholds_for_length_changes_min_increment;
   
     //if( have_trained_profile && start_with_trained_profile ) {
     //  // When we start with the trained profile, we need to get past the
@@ -459,7 +457,7 @@ std::cout << endl;
     //    max( training_parameters_template.minIterations, ( uint32_t )2 );
     //}
   
-    if( train_globals_first ) {
+    if( training_parameters_template.trainGlobalsFirst ) {
       // When we start with the globals, we might not get an opportunity to
       // really train unless we force at least 2 iterations.
       training_parameters_template.minIterations =
@@ -469,26 +467,30 @@ std::cout << endl;
     // Use rabiner scaling? (default true)
     // NOTE: You must change the MatrixValueType to logspace or bfloat if this is false!
     // NOTE: For now if USE_DEL_IN_DEL_OUT, keep this as false.
-    training_parameters_template.useRabinerScaling = false;
+      /// NOTE THAT RIGHT NOW, RABINER SCALING SEEMS TO BE BROKEN.  \todo FIX!
+    if( training_parameters_template.useRabinerScaling ) {
+      cout << "WARNING: RABINER SCALING IS NOT PRESENTLY FUNCTIONAL; NOT USING IT." << endl;
+      training_parameters_template.useRabinerScaling = false;
+    }
 
     // Train globals first?
-    training_parameters_template.trainGlobalsFirst = train_globals_first;
+    //training_parameters_template.trainGlobalsFirst = train_globals_first;
 
     // Use Ubw?
-    training_parameters_template.useUnconditionalBaumWelch =
-      use_unconditional_training;
+    //training_parameters_template.useUnconditionalBaumWelch =
+    //  use_unconditional_training;
   
 #ifdef ALLOW_BOLTZMANN_GIBBS
     // NOTE about priors:  since globals are presently not updated using Baldi, you can still usePriors and they will affect the globals *but not the positions*.
-    training_parameters_template.baldiLearningRate = 1; // 0 means noBaldi!
-    training_parameters_template.baldiTemperature = 1;
-    training_parameters_template.baldiHybrid = false;
-    training_parameters_template.siegelEpsilonScaleFactor = 1.5;
-    training_parameters_template.siegelMaxFindingThePeakAttempts_positions = 10000; // 0 means Baldi not Baldi / Siegel !!!
-    training_parameters_template.siegelRefiningThePeakStepsConvergenceThreshold = 1E-5;
-    training_parameters_template.siegelMaxFindingTheGradientAttempts_positions = 10;
-    training_parameters_template.siegelMinEpsilon = 1E-5;
-    training_parameters_template.siegelMaxRefiningThePeakSteps_positions = 1000;
+    //training_parameters_template.baldiLearningRate = 1; // 0 means noBaldi!
+    //training_parameters_template.baldiTemperature = 1;
+    //training_parameters_template.baldiHybrid = false;
+    //training_parameters_template.siegelEpsilonScaleFactor = 1.5;
+    //training_parameters_template.siegelMaxFindingThePeakAttempts_positions = 10000; // 0 means Baldi not Baldi / Siegel !!!
+    //training_parameters_template.siegelRefiningThePeakStepsConvergenceThreshold = 1E-5;
+    //training_parameters_template.siegelMaxFindingTheGradientAttempts_positions = 10;
+    //training_parameters_template.siegelMinEpsilon = 1E-5;
+    //training_parameters_template.siegelMaxRefiningThePeakSteps_positions = 1000;
     training_parameters_template.minBaumWelchInverseScalar = 0;
     training_parameters_template.maxBaumWelchInverseScalar = 0;
     //training_parameters_template.maxPositionCycles = 10;
@@ -498,77 +500,68 @@ std::cout << endl;
     typename DynamicProgramming<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::template DirichletMixtureMatchEmissionPrior<float> matchEmissionPrior;
     typename DynamicProgramming<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::template DirichletMixtureGlobalPrior<float> globalPrior;
     if( training_parameters_template.usePriors ) {
-#ifdef USE_DEL_IN_DEL_OUT
-      training_parameters_template.priorMtoM = .095;
-      training_parameters_template.priorMtoI = .0025;
-      training_parameters_template.priorMtoD = .0025;
-      double priorMtoW                       = .9;
-      double priorWtoW                       = .9999;
-      double priorWtoE                       = .0001;
-      double priorZtoZ                       = .9999;
-      double priorZtoM                       = .0001;
-      double priorBtoZ                       = .9;
-      double priorBtoD                       = .01;
-      double priorBtoM                       = .09;
-#else
-      double priorBtoD                       = .01;
-      double priorBtoM                       = .9;
-#endif // USE_DEL_IN_DEL_OUT .. else ..
-#ifndef DISALLOW_FLANKING_TRANSITIONS
-      double priorCtoC                       = .01;
-      double priorCtoT                       = .99;
-      double priorNtoN                       = .01;
-      double priorNtoB                       = .99;
-#endif // !DISALLOW_FLANKING_TRANSITIONS
-      double priorStrength = emissions_prior_strength;
-      double priorStrength_internal_transitions = transitions_prior_strength;
-      double priorStrength_flanking_self_transitions = transitions_prior_strength; // 1000
-      double priorStrength_flanking_other_transitions = transitions_prior_strength; // 1000
+//#ifdef USE_DEL_IN_DEL_OUT
+//      training_parameters_template.priorMtoM = .095;
+//      training_parameters_template.priorMtoI = .0025;
+//      training_parameters_template.priorMtoD = .0025;
+//      double priorMtoW                       = .9;
+//      double priorWtoW                       = .9999;
+//      double priorWtoE                       = .0001;
+//      double priorZtoZ                       = .9999;
+//      double priorZtoM                       = .0001;
+//      double priorBtoZ                       = .9;
+//      double priorBtoD                       = .01;
+//      double priorBtoM                       = .09;
+//#else
+//      double priorBtoD                       = .01;
+//      double priorBtoM                       = .99;
+//#endif // USE_DEL_IN_DEL_OUT .. else ..
+
       // Here's how it is set up in ProfuseTest.hpp:
-      matchEmissionPrior.reinitializeToEven( priorStrength );
-      globalPrior.reinitializeToEven( priorStrength );
+      matchEmissionPrior.reinitializeToEven( training_parameters_template.priorStrength );
+      globalPrior.reinitializeToEven( training_parameters_template.priorStrength );
       training_parameters_template.matchEmissionPrior = &matchEmissionPrior;
       training_parameters_template.globalPrior = &globalPrior;
       // Put a strong prior on a small C->C and N->N
 #ifndef DISALLOW_FLANKING_TRANSITIONS
-      globalPrior[ 0 ][ Transition::fromPreAlign ][ TransitionFromPreAlign::toPreAlign ] = ( priorStrength_flanking_self_transitions * priorNtoN );
-      globalPrior[ 0 ][ Transition::fromPreAlign ][ TransitionFromPreAlign::toBegin ] = ( priorStrength_flanking_other_transitions * priorNtoB );
-      globalPrior[ 0 ][ Transition::fromPostAlign ][ TransitionFromPostAlign::toPostAlign ] = ( priorStrength_flanking_self_transitions * priorCtoC );
-      globalPrior[ 0 ][ Transition::fromPostAlign ][ TransitionFromPostAlign::toTerminal ] = ( priorStrength_flanking_other_transitions * priorCtoT );
+      globalPrior[ 0 ][ Transition::fromPreAlign ][ TransitionFromPreAlign::toPreAlign ] = ( priorStrength_flanking_self_transitions * training_parameters_template.priorNtoN );
+      globalPrior[ 0 ][ Transition::fromPreAlign ][ TransitionFromPreAlign::toBegin ] = ( priorStrength_flanking_other_transitions * training_parameters_template.priorNtoB );
+      globalPrior[ 0 ][ Transition::fromPostAlign ][ TransitionFromPostAlign::toPostAlign ] = ( priorStrength_flanking_self_transitions * training_parameters_template.priorCtoC );
+      globalPrior[ 0 ][ Transition::fromPostAlign ][ TransitionFromPostAlign::toTerminal ] = ( priorStrength_flanking_other_transitions * training_parameters_template.priorCtoT );
 #endif // !DISALLOW_FLANKING_TRANSITIONS
 
       // Do additional setup of the transition priors for those transtions
       // observed many times (since the number of transitions depends on
       // the profile length).
-      globalPrior[ 0 ][ Transition::fromMatch ][ TransitionFromMatch::toMatch ] = ( initial_profile_length * priorStrength_internal_transitions * training_parameters_template.priorMtoM );
-      globalPrior[ 0 ][ Transition::fromMatch ][ TransitionFromMatch::toDeletion ] = ( initial_profile_length * priorStrength_internal_transitions * training_parameters_template.priorMtoD );
+      globalPrior[ 0 ][ Transition::fromMatch ][ TransitionFromMatch::toMatch ] = ( initial_profile_length * training_parameters_template.priorStrength_internal_transitions * training_parameters_template.priorMtoM );
+      globalPrior[ 0 ][ Transition::fromMatch ][ TransitionFromMatch::toDeletion ] = ( initial_profile_length * training_parameters_template.priorStrength_internal_transitions * training_parameters_template.priorMtoD );
 #ifdef USE_DEL_IN_DEL_OUT
       // TODO: Create training_parameters_template.priorMtoW
-      globalPrior[ 0 ][ Transition::fromMatch ][ TransitionFromMatch::toDeletionOut ] = ( initial_profile_length * priorStrength_internal_transitions * priorMtoW );
+      globalPrior[ 0 ][ Transition::fromMatch ][ TransitionFromMatch::toDeletionOut ] = ( initial_profile_length * training_parameters_template.priorStrength_internal_transitions * training_parameters_template.priorMtoW );
 #endif // USE_DEL_IN_DEL_OUT
-      globalPrior[ 0 ][ Transition::fromMatch ][ TransitionFromMatch::toInsertion ] = ( initial_profile_length * priorStrength_internal_transitions * training_parameters_template.priorMtoI );
+      globalPrior[ 0 ][ Transition::fromMatch ][ TransitionFromMatch::toInsertion ] = ( initial_profile_length * training_parameters_template.priorStrength_internal_transitions * training_parameters_template.priorMtoI );
 #ifdef USE_DEL_IN_DEL_OUT
       // TODO: Create training_parameters_template.priorWtoW
-      globalPrior[ 0 ][ Transition::fromDeletionOut ][ TransitionFromDeletionOut::toDeletionOut ] = ( initial_profile_length * priorStrength_flanking_other_transitions * priorWtoW );
+      globalPrior[ 0 ][ Transition::fromDeletionOut ][ TransitionFromDeletionOut::toDeletionOut ] = ( initial_profile_length * training_parameters_template.priorStrength_flanking_other_transitions * training_parameters_template.priorWtoW );
       // TODO: Create training_parameters_template.priorWtoE
-      globalPrior[ 0 ][ Transition::fromDeletionOut ][ TransitionFromDeletionOut::toEnd ] = ( initial_profile_length * priorStrength_flanking_other_transitions * priorWtoE );
-      globalPrior[ 0 ][ Transition::fromBegin ][ TransitionFromBegin::toMatch ] = ( priorStrength_flanking_other_transitions * priorBtoM );
-      globalPrior[ 0 ][ Transition::fromBegin ][ TransitionFromBegin::toDeletion ] = ( priorStrength_flanking_other_transitions * priorBtoD );
+      globalPrior[ 0 ][ Transition::fromDeletionOut ][ TransitionFromDeletionOut::toEnd ] = ( initial_profile_length * training_parameters_template.priorStrength_flanking_other_transitions * training_parameters_template.priorWtoE );
+      globalPrior[ 0 ][ Transition::fromBegin ][ TransitionFromBegin::toMatch ] = ( priorStrength_flanking_other_transitions * training_parameters_template.priorBtoM );
+      globalPrior[ 0 ][ Transition::fromBegin ][ TransitionFromBegin::toDeletion ] = ( priorStrength_flanking_other_transitions * training_parameters_template.priorBtoD );
       // TODO: Create training_parameters_template.priorBtoZ
-      globalPrior[ 0 ][ Transition::fromBegin ][ TransitionFromBegin::toDeletionIn ] = ( priorStrength_flanking_other_transitions * priorBtoZ );
+      globalPrior[ 0 ][ Transition::fromBegin ][ TransitionFromBegin::toDeletionIn ] = ( priorStrength_flanking_other_transitions * training_parameters_template.priorBtoZ );
       // TODO: Create training_parameters_template.priorZtoZ
-      globalPrior[ 0 ][ Transition::fromDeletionIn ][ TransitionFromDeletionIn::toDeletionIn ] = ( initial_profile_length * priorStrength_flanking_other_transitions * priorZtoZ );
+      globalPrior[ 0 ][ Transition::fromDeletionIn ][ TransitionFromDeletionIn::toDeletionIn ] = ( initial_profile_length * training_parameters_template.priorStrength_flanking_other_transitions * training_parameters_template.priorZtoZ );
       // TODO: Create training_parameters_template.priorZtoM
-      globalPrior[ 0 ][ Transition::fromDeletionIn ][ TransitionFromDeletionIn::toMatch ] = ( initial_profile_length * priorStrength_flanking_other_transitions * priorZtoM );
+      globalPrior[ 0 ][ Transition::fromDeletionIn ][ TransitionFromDeletionIn::toMatch ] = ( initial_profile_length * training_parameters_template.priorStrength_flanking_other_transitions * training_parameters_template.priorZtoM );
 #endif // USE_DEL_IN_DEL_OUT
-      globalPrior[ 0 ][ Transition::fromInsertion ][ TransitionFromInsertion::toMatch ] = ( initial_profile_length * priorStrength_internal_transitions * training_parameters_template.priorItoM );
-      globalPrior[ 0 ][ Transition::fromInsertion ][ TransitionFromInsertion::toInsertion ] = ( initial_profile_length * priorStrength_internal_transitions * training_parameters_template.priorItoI );
-      globalPrior[ 0 ][ Transition::fromDeletion ][ TransitionFromDeletion::toMatch ] = ( initial_profile_length * priorStrength_internal_transitions * training_parameters_template.priorDtoM );
-      globalPrior[ 0 ][ Transition::fromDeletion ][ TransitionFromDeletion::toDeletion ] = ( initial_profile_length * priorStrength_internal_transitions * training_parameters_template.priorDtoD );
+      globalPrior[ 0 ][ Transition::fromInsertion ][ TransitionFromInsertion::toMatch ] = ( initial_profile_length * training_parameters_template.priorStrength_internal_transitions * training_parameters_template.priorItoM );
+      globalPrior[ 0 ][ Transition::fromInsertion ][ TransitionFromInsertion::toInsertion ] = ( initial_profile_length * training_parameters_template.priorStrength_internal_transitions * training_parameters_template.priorItoI );
+      globalPrior[ 0 ][ Transition::fromDeletion ][ TransitionFromDeletion::toMatch ] = ( initial_profile_length * training_parameters_template.priorStrength_internal_transitions * training_parameters_template.priorDtoM );
+      globalPrior[ 0 ][ Transition::fromDeletion ][ TransitionFromDeletion::toDeletion ] = ( initial_profile_length * training_parameters_template.priorStrength_internal_transitions * training_parameters_template.priorDtoD );
     } // End if usePriors
   
     //training_parameters_template.verbosity = VERBOSITY_All;
-    training_parameters_template.verbosity = VERBOSITY_Low;
+    //training_parameters_template.verbosity = VERBOSITY_Low;
     //training_parameters_template.verbosity = VERBOSITY_None;
     //training_parameters_template.debug = DEBUG_All;
       
@@ -577,10 +570,11 @@ std::cout << endl;
     // TODO: REMOVE.  Testing matrixRowScaleFactor
     //training_parameters_template.matrixRowScaleFactor =
     //  pow( numeric_limits<double>::max(), .25 ) - 1.0;
-  
+
+    // NOTE: Copy constructor does not copy defaults (m_galosh_options_map will be empty).  
     trainer.m_parameters = training_parameters_template;
     // TODO: REMOVE
-    //cout << "just before training, trainer parameters are " << trainer.m_parameters << endl;
+    cout << "just before training, trainer parameters are " << trainer.m_parameters << endl;
   
     if( profile_output_filename_ptr == NULL ) { // TODO: ? For now we assume they want profiles in the output stream.
       cout << "The profile (before) is:" << endl;
