@@ -3,76 +3,81 @@ and are easy to install.
 
 Required external libraries:
 ---
-BOOST (tested with version 1.46.1):
-http://sourceforge.net/projects/boost/files/boost/1.46.1/
-
-Seqan snapshot
-svn co http://svn.seqan.de/seqan/trunk seqan-trunk
+BOOST (tested with version 1.59.0)
+Seqan (direct from github)
 
 HMMoC-BFloat-Algebra:
-http://pedlefsen.github.com/HMMoC-BFloat-Algebra/
+https://github.com/pedlefsen/HMMoC-BFloat-Algebra
 
 Required galosh libraries:
 ---
-prolific (NOT the same thing as this library, which is "profillic"):  http://galosh.github.com/prolific
+prolific (NOT the same thing as this library, which is "profillic"):  https://github.com/galosh/prolific
 
-FIRST, retrieve and unpack _this_ library (if you have not already done so), and rename the dir to "profillic".  We will assume in the below instructions that all other required libraries will be installed in the parent directory of profillic, though you may adjust them to suit you if that is not the case.
+Recommended galosh libraries:
+---
+profuse:  https://github.com/galosh/profuse
 
-=========
-Installing BOOST (if you don't already have it!  Check first eg "locate boost")
+### What follows mostly assumes you're on a mac using macports.  If on another system, use the analogous package manager or follow installation instructions for the required packages if you want to build them yourself.
 
-On my system, the boost libraries are in /usr/local/lib, and boost includes are in /usr/local/include.  I got them there like so:
-# Retrieve boost from http://sourceforge.net/projects/boost/files/boost/1.46.1/
-# Unpack it.  From one dir above it:
-cd boost_1_46_1
-./bootstrap.sh 
-sudo bjam install
+# # PREREQ: Get BOOST!
+# # On my system, the boost libraries are in /usr/local/lib, and boost
+# # includes are in /usr/local/include.  If your version is not
+# # up-to-date, I can't vouch for this working, so you might need to
+# # reinstall BOOST even if you already have it.  I've tested the code
+# # with version 1.59.0 (only).
+#
+# # If you need to uninstall an existing installation, do
+# rm -r /usr/local/lib/libboost*
+# rm -r /usr/local/include/boost/
+sudo port install boost
+
+## Using Seqan directly from github (master branch, not devel branch) [https://github.com/seqan/seqan]:
+cd ~/src/from-git
+git clone https://github.com/seqan/seqan.git
+## Docs at http://docs.seqan.de/seqan/master/
+## Note untested at this point whether we can use this and compile.
+## Need cmake (on a mac, get it using macports [http://www.macports.org/install.php]:)
+sudo port install cmake
+## (unsure if you really need to make sure you have the java jde installed and up to date first: http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
+## (make sure boost is installed and findable before running cmake)
+mkdir seqan-build
+cd seqan-build/
+mkdir debug
+cd debug
+cmake ~/src/from-git/seqan -DCMAKE_BUILD_TYPE=Debug
+make seqan_tcoffee
+cd ..
+mkdir release
+cd release
+cmake ~/src/from-git/seqan -DCMAKE_BUILD_TYPE=Release
+make seqan_tcoffee
 cd ..
 
-# If you don't have write access to /usr/local/bin and /usr/local/include, you should be able to install BOOST in your home directory instead (see the Boost Getting Started docs at eg http://www.boost.org/doc/libs/1_46_1/more/getting_started/ .  Below where it says to link to /usr/local/lib and /usr/local/include, instead link to your local install dirs.
+## Profillic uses boost-build (bjam)
+sudo port install boost-build
+rehash
 
-### NOTE: If you encounter problems later with bjam or with BOOST, it may be because there are multiple BOOST installs on your system.  You may need to first remove the /usr/local/lib/libboost* and /usr/local/include/boost files/dirs, then do the "sudo bjam install" again.  If that fails, consider a local install of BOOST as described above.
-
-# Now go into the profillic directory.
-cd profillic
-ln -s /usr/local/include boost-include
-ln -s /usr/local/lib boost-lib
+git clone https://github.com/pedlefsen/HMMoC-BFloat-Algebra.git
+cd HMMoC-BFloat-Algebra
+bjam dist release
 cd ..
 
-=========
-Installing Seqan
-## Get Seqan if you don't already have it
-svn co http://svn.seqan.de/seqan/trunk seqan-trunk
+git clone https://github.com/galosh/prolific.git
+## prolific is a header only library; there is nothing to build.
 
-# Make sure that seqan link in the profillic dir points to the right seqan dir.
+git clone https://github.com/galosh/profillic.git
 cd profillic
-ln -s ../seqan-trunk
-
-=========
-Installing HMMoC-BFloat-Algebra.
-
-Retrieve HMMoC-BFloat-Algebra from http://pedlefsen.github.com/HMMoC-BFloat-Algebra/, and unpack it.
-# Create the link to it in the profillic dir:
-# (note that the hex number "582a53e" might be different for you)
-cd profillic
-ln -s ../pedlefsen-HMMoC-BFloat-Algebra-582a53e HMMoC-BFloat-Algebra
-cd ..
-
-=========
-Installing the prolific header-only library.
-
-Retrieve prolific from http://galosh.github.com/prolific/, and unpack it.
-# Create the link to it in the profillic dir:
-# (note that the hex number "bb99906" might be different for you)
-cd profillic
-ln -s ../galosh-prolific-bb99906 prolific
-cd ..
-
 =========
 FINALLY, installing profillic.
 
 cd profillic
+ln -s /usr/local/lib boost-lib
+ln -s /usr/local/include boost-include
+ln -s ~/src/from-git/seqan seqan-trunk
+ln -s ../HMMoC-BFloat-Algebra
+ln -s ../prolific
 
+## NOTE: I had to add --toolset=darwin because it wasn't guessing it correctly. You can add eg "use darwin ;" to your site-config.jam [or user-config.jam] file.
 # First must make sure you can compile it in the fast-to-compile, slow-to-run "debug" variant, before trying to compile the slow-to-compile "release" variant.
 bjam --clean
 bjam debug profillic_AA_CQA
@@ -82,4 +87,7 @@ bjam install release
 # The above will (slowly) compile the executables, and will copy them to the dist/ subdir.
 
 # You might be interested to check out the bjam (Boost.Build) documentation: http://www.boost.org/boost-build2/doc/html/index.html
+bjam dist release --toolset=darwin
+cd ..
+
 
