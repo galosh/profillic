@@ -79,7 +79,7 @@ main ( int const argc, char ** argv )
     po::options_description generic( "Generic options" );
     generic.add_options()
       ( "version,v", "print version string" )
-      ( "help", "produce help message" )
+      ( "help,h", "produce help message" )
       ( "config,c", po::value<string>( &config_file )->default_value( "profillic.cfg" ),
         "name of a file of a configuration." )
       ;
@@ -110,7 +110,7 @@ main ( int const argc, char ** argv )
       ( "nseq,n",
         po::value<uint32_t>(),
         "number of sequences to use (default is ALL)" )
-      ( "proposeProfileLengthChanges,use_lengthadjust,dms,d", "use the Dynamic Model Surgery (DMS) algorithm to prune unused model states and introduce states for oft-used insertions" )
+      ( "proposeProfileLengthChanges,use_lengthadjust,d", "use the Dynamic Model Surgery (DMS) algorithm to prune unused model states and introduce states for oft-used insertions" )
       ( "useUnconditionalBaumWelch,unconditional,u", "use the unconditional variant of the algorithm to simultaneously update all positions in each iteration" )
       ( "trainGlobalsFirst,globals_first,g", "train the globals before the first positions-training step" )
       ( "maxIterations,max_iterations,i",
