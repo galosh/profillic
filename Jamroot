@@ -36,10 +36,19 @@ alias install : dist ;
 
 explicit install dist ;
 
-lib boost_serialization : : <file>./boost-lib/libboost_serialization.a ;
-lib boost_filesystem : : <file>./boost-lib/libboost_filesystem.a ;
-lib boost_graph : : <file>./boost-lib/libboost_graph.a ;
-lib boost_system : : <file>./boost-lib/libboost_system.a ;
-lib boost_program_options : : <file>./boost-lib/libboost_program_options.a ;
+
+## If you are on a multithreaded system, see below
+# lib boost_serialization : : <file>./boost-lib/libboost_serialization.a ;
+# lib boost_filesystem : : <file>./boost-lib/libboost_filesystem.a ;
+# lib boost_graph : : <file>./boost-lib/libboost_graph.a ;
+# lib boost_system : : <file>./boost-lib/libboost_system.a ;
+# lib boost_program_options : : <file>./boost-lib/libboost_program_options.a ;
+
+## If you are on a multithreaded system, comment out the above and uncomment this:
+lib boost_serialization : : <file>./boost-lib/libboost_serialization-mt.dylib ;
+lib boost_filesystem : : <file>./boost-lib/libboost_filesystem-mt.dylib ;
+lib boost_graph : : <file>./boost-lib/libboost_graph-mt.dylib ;
+lib boost_system : : <file>./boost-lib/libboost_system-mt.dylib ;
+lib boost_program_options : : <file>./boost-lib/libboost_program_options-mt.dylib ;
 
 

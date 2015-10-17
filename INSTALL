@@ -31,13 +31,17 @@ profuse:  https://github.com/galosh/profuse
 # rm -r /usr/local/include/boost/
 sudo port install boost
 
+## Profillic uses boost-build (bjam)
+sudo port install boost-build
+rehash
+
+## Seqan needs cmake (on a mac, get it using macports [http://www.macports.org/install.php]:)
+sudo port install cmake
+
 ## Using Seqan directly from github (master branch, not devel branch) [https://github.com/seqan/seqan]:
 cd ~/src/from-git
 git clone https://github.com/seqan/seqan.git
 ## Docs at http://docs.seqan.de/seqan/master/
-## Note untested at this point whether we can use this and compile.
-## Need cmake (on a mac, get it using macports [http://www.macports.org/install.php]:)
-sudo port install cmake
 ## (unsure if you really need to make sure you have the java jde installed and up to date first: http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
 ## (make sure boost is installed and findable before running cmake)
 mkdir seqan-build
@@ -53,13 +57,10 @@ cmake ~/src/from-git/seqan -DCMAKE_BUILD_TYPE=Release
 make seqan_tcoffee
 cd ..
 
-## Profillic uses boost-build (bjam)
-sudo port install boost-build
-rehash
-
 git clone https://github.com/pedlefsen/HMMoC-BFloat-Algebra.git
 cd HMMoC-BFloat-Algebra
-bjam dist release
+ln -s ./boost-lib 
+bjam dist release --toolset=darwin
 cd ..
 
 git clone https://github.com/galosh/prolific.git
@@ -71,23 +72,22 @@ cd profillic
 FINALLY, installing profillic.
 
 cd profillic
-ln -s /usr/local/lib boost-lib
-ln -s /usr/local/include boost-include
+ln -s /opt/local/lib boost-lib
+ln -s /opt/local/include boost-include
 ln -s ~/src/from-git/seqan seqan-trunk
 ln -s ../HMMoC-BFloat-Algebra
 ln -s ../prolific
 
 ## NOTE: I had to add --toolset=darwin because it wasn't guessing it correctly. You can add eg "use darwin ;" to your site-config.jam [or user-config.jam] file.
 # First must make sure you can compile it in the fast-to-compile, slow-to-run "debug" variant, before trying to compile the slow-to-compile "release" variant.
-bjam --clean
-bjam debug profillic_AA_CQA
+bjam --clean --toolset=darwin
+bjam debug profillic_AA_CQA --toolset=darwin
 
 # If that works (fingers crossed!), do
-bjam install release
+bjam dist release --toolset=darwin
+cd ..
 # The above will (slowly) compile the executables, and will copy them to the dist/ subdir.
 
 # You might be interested to check out the bjam (Boost.Build) documentation: http://www.boost.org/boost-build2/doc/html/index.html
-bjam dist release --toolset=darwin
-cd ..
 
 
