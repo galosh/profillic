@@ -50,7 +50,6 @@
 #include "Profillic.hpp"
 
 #include "Parameters.hpp"
-
 using galosh::Parameters;
 using galosh::DebugLevel;
 using galosh::VerbosityLevel;
@@ -207,7 +206,7 @@ template <class ProfileType,
       )
       {
         //TODO: REMOVE
-        cout << "in ProfileTrainer::Parameters operator<<" << endl;
+        //cout << "in ProfileTrainer::Parameters operator<<" << endl;
         parameters.writeParameters( os );
 
         return os;
@@ -838,7 +837,6 @@ template <class ProfileType,
          this->galosh::Parameters::m_galosh_options_description.add_options()(#NAME,po::value<TYPE>(&NAME)->default_value(DEFAULTVAL) TMP_EXTRA_STUFF,HELP)
          #include "ProfileTrainerOptions.hpp"  /// define all the commandline options for this module
 
-         //this->resetToDefaults();
       }   // galosh::ProfileTrainer::Parameters::<init>()
 
   template <class ProfileType,
@@ -968,7 +966,7 @@ template <class ProfileType,
       ) const
       { // TAH 9/13 How far to qualify?
         //TODO: REMOVE
-        cout << "in ProfileTrainer::writeParameters" << endl;
+        //cout << "in ProfileTrainer::writeParameters" << endl;
         ProlificParameters<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::Parameters::writeParameters( os );
         os << endl;
 
