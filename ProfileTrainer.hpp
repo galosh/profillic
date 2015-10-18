@@ -949,6 +949,7 @@ template <class ProfileType,
         #define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP) NAME = this->Parameters::m_galosh_options_map[#NAME].template as<TYPE>()
         #include "ProfileTrainerOptions.hpp"  /// reset all Parameters members
                                               /// (ProfileTrainer and through inheritance tree)
+
         matchEmissionPrior = NULL;
         globalPrior = NULL;
       } // resetToDefaults()
