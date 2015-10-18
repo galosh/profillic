@@ -109,7 +109,7 @@ template <class ProfileType,
     {
 
     private:
-      typedef typename ProlificParameters<ResidueType, ProbabilityType,ScoreType,MatrixValueType>::Parameters dynamic_programming_parameters_t;
+      typedef typename ProlificParameters<ResidueType, ProbabilityType,ScoreType,MatrixValueType>::Parameters prolific_parameters_t;
 
       // Boost serialization
       friend class boost::serialization::access;
@@ -117,7 +117,7 @@ template <class ProfileType,
       void serialize ( Archive & ar, const unsigned int /* file_version */ )
       {
         // save/load base class information
-        ar & BOOST_SERIALIZATION_BASE_OBJECT_NVP( dynamic_programming_parameters_t );
+        ar & BOOST_SERIALIZATION_BASE_OBJECT_NVP( prolific_parameters_t );
         /**
          * ProfileTrainer Members to be serialized
          *   TAH 9/13
@@ -1167,6 +1167,7 @@ template <class ProfileType,
      */
     ProfileTrainer (
     ) :
+      m_parameters(),
       m_dynamic_programming(),
       m_profile( 0 ),
       m_sequences( 0 ),
@@ -1193,6 +1194,7 @@ template <class ProfileType,
       ProfileType * profile,
       vector<SequenceType> const & sequences
     ) :
+      m_parameters(),
       m_dynamic_programming(),
       m_profile( profile ),
       m_sequences( sequences ),
@@ -1222,6 +1224,7 @@ template <class ProfileType,
       vector<SequenceType> const & sequences,
       uint32_t const & num_sequences_to_use // use only the first X sequences...
     ) :
+      m_parameters(),
       m_dynamic_programming(),
       m_profile( profile ),
       m_sequences( sequences ),
@@ -1249,6 +1252,7 @@ template <class ProfileType,
     ProfileTrainer (
       ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType> const & copy_from
     ) :
+      m_parameters(),
       m_dynamic_programming(),
       m_profile( copy_from.m_profile ),
       m_sequences( copy_from.m_sequences ),
@@ -1372,7 +1376,7 @@ template <class ProfileType,
       m_profile = profile;
       // Make sure each distribution's probabilities sum to 1!
       m_profile->normalize( 0 ); // TODO: Should we use m_trainingParameters.profileValueMinimum ?
-      // TODO: Why is this necessary?!
+      // TODO: Why is this necessary?! Is it?
       m_profile->ensurePositionsKnowTheirRoot();
 
       m_globalsToRevertTo.copyExceptPositions( *m_profile );
@@ -9237,7 +9241,7 @@ template <class ProfileType,
 //                          );
 //                        cout << "Recalculated old score is " << score_after_modification << endl;
                       } // End if !usePriors & TRAINING_PHASE_Globals & !useUnconditionalBaumWelch
-                      assert( false );
+                      //assert( false );
                     }
                   } // End if verbose
 

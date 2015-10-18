@@ -110,18 +110,20 @@ main ( int const argc, char ** argv )
       ( "nseq,n",
         po::value<uint32_t>(),
         "number of sequences to use (default is ALL)" )
-      ( "proposeProfileLengthChanges,use_lengthadjust,d", "use the Dynamic Model Surgery (DMS) algorithm to prune unused model states and introduce states for oft-used insertions" )
-      ( "useUnconditionalBaumWelch,unconditional,u", "use the unconditional variant of the algorithm to simultaneously update all positions in each iteration" )
-      ( "trainGlobalsFirst,globals_first,g", "train the globals before the first positions-training step" )
-      ( "maxIterations,max_iterations,i",
+      ( "proposeProfileLengthChanges,d", "use the Dynamic Model Surgery (DMS) algorithm to prune unused model states and introduce states for oft-used insertions" )
+      ( "uncunconditionalBaumWelch,u",
+        "use the unconditional variant of the algorithm to simultaneously update all positions in each iteration" )
+      ( "trainGlobalsFirst,train_globals_first",
+        "train the globals before the first positions-training step" )
+      ( "maxIterations,max_iterations",
         po::value<uint32_t>(),
         "maximum number of iterations to use in training the profile (default 1000)" )
-      ( "priorStrength,emisions_prior_strength",
-        po::value<double>(),
-        "strength of priors for emissions parameters (not used for Quadratic Ascent training)" )
-      ( "priorStrength_internal_transitions,transitions_prior_strength",
-        po::value<double>(),
-        "strength of priors for transitions parameters" )
+//      ( "priorStrength,prior_strength",
+//        po::value<float>(),
+//        "strength of priors for emissions parameters (not used for Quadratic Ascent training)" )
+//      ( "priorStrength_internal_transitions,prior_strength_internal_transitions",
+//        po::value<float>(),
+//        "strength of priors for transitions parameters" )
       ;
 
     // Hidden options, will be allowed both on command line and
@@ -233,7 +235,8 @@ main ( int const argc, char ** argv )
     //             << params.m_galosh_options_map["input-file"].as< vector<string> >() << "\n";
     //    }
 
-    // TODO: ERE I AM
+    // Now we need to transfer the options map information (which is the defaults for the runtime of the program) into the actual parameters:
+    params.resetToDefaults();
     Train<ProbabilityType, ScoreType, MatrixValueType, ResidueType, SequenceResidueType> train;
     train.train( params );
 
