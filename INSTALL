@@ -59,7 +59,8 @@ cd ..
 
 git clone https://github.com/pedlefsen/HMMoC-BFloat-Algebra.git
 cd HMMoC-BFloat-Algebra
-ln -s ./boost-lib 
+ln -s /opt/local/lib boost-lib
+ln -s /opt/local/include boost-include
 bjam dist release --toolset=darwin
 cd ..
 
