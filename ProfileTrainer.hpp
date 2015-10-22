@@ -850,8 +850,9 @@ template <class ProfileType,
       // Copy constructor
       Parameters ( const AnyParameters & copy_from )
       {
-        if (copy_from.debug >= DEBUG_All )  {
+         #ifdef DEBUG
            cout << "[debug] ProfileTrainer::Parameters::<init>( copy_from )" << endl;
+         #endif
         } // End if DEBUG_All
         copyFromNonVirtual( copy_from );
       } // <init>( AnyParameters const & )
@@ -870,8 +871,9 @@ template <class ProfileType,
         AnyParameters const& copy_from
       )
       {
-        if( copy_from.debug >= DEBUG_All ) {
+        #ifdef DEBUG
           cout << "[debug] ProfileTrainer::Parameters::operator=( copy_from )" << endl;
+        #endif
         } // End if DEBUG_All
         copyFromNonVirtual( copy_from );
         return *this;
@@ -941,9 +943,9 @@ template <class ProfileType,
       resetToDefaults ()
       { /// TAH 9/13 How far to qualify parent?
         ProlificParameters<ResidueType, ProbabilityType, ScoreType, MatrixValueType>::Parameters::resetToDefaults();
-        if( Parameters::debug >= DEBUG_All ) {
+         #ifdef DEBUG
            cout << "[debug] ProfileTrainer::Parameters::resetToDefaults()" << endl;
-        } // End if DEBUG_All
+         #endif
         /// TAH 9/13
         #undef GALOSH_DEF_OPT
         #define GALOSH_DEF_OPT(NAME,TYPE,DEFAULTVAL,HELP) NAME = this->Parameters::m_galosh_options_map[#NAME].template as<TYPE>()
@@ -998,9 +1000,9 @@ template <class ProfileType,
       // Base constructor
       ParametersModifierTemplate ()
       {
-        if( base_parameters_modifier_t::parameters.debug >= DEBUG_All ) {
+         #ifdef DEBUG
           cout << "[debug] ProfileTrainer::ParametersModifierTemplate::<init>()" << endl;
-        } // End if DEBUG_All
+         #endif
         isModified_reset();
       } // <init>()
 
@@ -1016,9 +1018,9 @@ template <class ProfileType,
   ProfileTrainer<ProfileType, ScoreType, MatrixValueType, SequenceResidueType, InternalNodeType>::ParametersModifierTemplate<ParametersType>::
       ParametersModifierTemplate ( const AnyParametersModifierTemplate & copy_from )
       {
-        if( copy_from.parameters.debug >= DEBUG_All ) {
+         #ifdef DEBUG
           cout << "[debug] ProfileTrainer::ParametersModifierTemplate::<init>( copy_from )" << endl;
-        } // End if DEBUG_All
+          #endif
         copyFromNonVirtual( copy_from );
       } // <init>( AnyParametersModifierTemplate const & )
 
