@@ -853,7 +853,6 @@ template <class ProfileType,
          #ifdef DEBUG
            cout << "[debug] ProfileTrainer::Parameters::<init>( copy_from )" << endl;
          #endif
-        } // End if DEBUG_All
         copyFromNonVirtual( copy_from );
       } // <init>( AnyParameters const & )
 
@@ -874,7 +873,6 @@ template <class ProfileType,
         #ifdef DEBUG
           cout << "[debug] ProfileTrainer::Parameters::operator=( copy_from )" << endl;
         #endif
-        } // End if DEBUG_All
         copyFromNonVirtual( copy_from );
         return *this;
       } // operator=( AnyParameters const & )
