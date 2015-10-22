@@ -111,13 +111,13 @@ main ( int const argc, char ** argv )
         po::value<uint32_t>(),
         "number of sequences to use (default is ALL)" )
       ( "proposeProfileLengthChanges,d", "use the Dynamic Model Surgery (DMS) algorithm to prune unused model states and introduce states for oft-used insertions" )
-      ( "uncunconditionalBaumWelch,u",
+      ( "unconditionalBaumWelch,u",
         "use the unconditional variant of the algorithm to simultaneously update all positions in each iteration" )
-      ( "trainGlobalsFirst,train_globals_first",
-        "train the globals before the first positions-training step" )
-      ( "maxIterations,max_iterations",
-        po::value<uint32_t>(),
-        "maximum number of iterations to use in training the profile (default 1000)" )
+      //( "trainGlobalsFirst,train_globals_first",
+      //  "train the globals before the first positions-training step" )
+//      ( "maxIterations,max_iterations",
+//        po::value<uint32_t>(),
+//        "maximum number of iterations to use in training the profile (default 1000)" )
 //      ( "priorStrength,prior_strength",
 //        po::value<float>(),
 //        "strength of priors for emissions parameters (not used for Quadratic Ascent training)" )
