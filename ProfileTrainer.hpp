@@ -1175,9 +1175,9 @@ template <class ProfileType,
       m_error( this ),
       m_sequence_count( 0 )
     {
-      if( m_parameters.debug >= DEBUG_All ) {
+      #ifdef DEBUG
         cout << "[debug] ProfileTrainer::<init>()" << endl;
-      } // End if DEBUG_All
+      #endif
       // Do nothing else
     } // <init>()
 
@@ -1202,9 +1202,9 @@ template <class ProfileType,
       m_error( this ),
       m_sequence_count( sequences.size() )
     {
-      if( m_parameters.debug >= DEBUG_All ) {
+      #ifdef DEBUG
         cout << "[debug] ProfileTrainer::<init>( ProfileType, vector<SequenceType> )" << endl;
-      } // End if DEBUG_All
+      #endif
       // Do nothing else
     } // <init>( ProfileType *, vector<SequenceType> const & )
 
@@ -1232,9 +1232,9 @@ template <class ProfileType,
       m_error( this ),
       m_sequence_count( min( ( size_t )( ( num_sequences_to_use > 0 ) ? num_sequences_to_use : sequences.size() ), sequences.size() ) )
     {
-      if( m_parameters.debug >= DEBUG_All ) {
+      #ifdef DEBUG
         cout << "[debug] ProfileTrainer::<init>( ProfileType, vector<SequenceType>, " << num_sequences_to_use << " )" << endl;
-      } // End if DEBUG_All
+      #endif
       // Do nothing else
     } // <init>( ProfileType *, vector<SequenceType> const &, uint32_t const & )
 
@@ -1260,9 +1260,9 @@ template <class ProfileType,
       m_error( this ),
       m_sequence_count( copy_from.m_sequence_count )
     {
-      if( m_parameters.debug >= DEBUG_All ) {
+      #ifdef DEBUG
         cout << "[debug] ProfileTrainer::<init>( ProfileTrainer const & )" << endl;
-      } // End if DEBUG_All
+       #endif
       // Do nothing else
     } // <init>( ProfileTrainer const & )
 
