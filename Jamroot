@@ -1,10 +1,11 @@
 project profillic
-    : requirements <library>/HMMoC-BFloat-Algebra//libHMMoC-BFloat-Algebra
-    : requirements <warnings>off ;
+    : requirements
+      <library>/HMMoC-BFloat-Algebra//libHMMoC-BFloat-Algebra
+      <warnings>off
+      <toolset>gcc:<cxxflags>"-ftemplate-depth=256 -fpermissive -std=c++11" ;
+
 
 use-project /HMMoC-BFloat-Algebra : ./HMMoC-BFloat-Algebra ;
-
-
 
 exe profillic_AA_CBW
     : [ obj Train_obj : Train.cpp
@@ -38,17 +39,17 @@ explicit install dist ;
 
 
 ## If you are on a multithreaded system, see below
-# lib boost_serialization : : <file>./boost-lib/libboost_serialization.a ;
-# lib boost_filesystem : : <file>./boost-lib/libboost_filesystem.a ;
-# lib boost_graph : : <file>./boost-lib/libboost_graph.a ;
-# lib boost_system : : <file>./boost-lib/libboost_system.a ;
-# lib boost_program_options : : <file>./boost-lib/libboost_program_options.a ;
+ lib boost_serialization : : <file>./boost-lib/libboost_serialization.a ;
+ lib boost_filesystem : : <file>./boost-lib/libboost_filesystem.a ;
+ lib boost_graph : : <file>./boost-lib/libboost_graph.a ;
+ lib boost_system : : <file>./boost-lib/libboost_system.a ;
+ lib boost_program_options : : <file>./boost-lib/libboost_program_options.a ;
 
 ## If you are on a multithreaded system, comment out the above and uncomment this:
-lib boost_serialization : : <file>./boost-lib/libboost_serialization-mt.dylib ;
-lib boost_filesystem : : <file>./boost-lib/libboost_filesystem-mt.dylib ;
-lib boost_graph : : <file>./boost-lib/libboost_graph-mt.dylib ;
-lib boost_system : : <file>./boost-lib/libboost_system-mt.dylib ;
-lib boost_program_options : : <file>./boost-lib/libboost_program_options-mt.dylib ;
+#lib boost_serialization : : <file>./boost-lib/libboost_serialization-mt.dylib ;
+#lib boost_filesystem : : <file>./boost-lib/libboost_filesystem-mt.dylib ;
+#lib boost_graph : : <file>./boost-lib/libboost_graph-mt.dylib ;
+#lib boost_system : : <file>./boost-lib/libboost_system-mt.dylib ;
+#lib boost_program_options : : <file>./boost-lib/libboost_program_options-mt.dylib ;
 
 
